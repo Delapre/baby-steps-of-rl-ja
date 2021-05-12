@@ -1,3 +1,5 @@
+import os
+
 class Planner():
 
     def __init__(self, env):
@@ -13,9 +15,13 @@ class Planner():
 
     def transitions_at(self, state, action):
         transition_probs = self.env.transit_func(state, action)
+        with open('log.txt', 'a') as f:
+            print("transition_probs  :",transition_probs,"   action:",action,file=f)
         for next_state in transition_probs:
             prob = transition_probs[next_state]
             reward, _ = self.env.reward_func(next_state)
+            with open('log.txt', 'a') as f:
+                print("now state:",state,"   next_state:",next_state,"   prob:",prob,"   reward:",reward,file=f)
             yield prob, next_state, reward
 
     def dict_to_grid(self, state_reward_dict):
@@ -30,6 +36,7 @@ class Planner():
 
 
 class ValueIterationPlanner(Planner):
+    # os.remove("log.txt")
 
     def __init__(self, env):
         super().__init__(env)
@@ -52,16 +59,30 @@ class ValueIterationPlanner(Planner):
                 for a in actions:
                     r = 0
                     for prob, next_state, reward in self.transitions_at(s, a):
-                        r += prob * (reward + gamma * V[next_state])
+                        rr = prob * (reward + gamma * V[next_state])
+                        with open('log.txt', 'a') as f:
+                            print("s:",s,"   a:",a,"   ｒr:",rr,file=f)
+
+                        r += rr
+                        with open('log.txt', 'a') as f:
+                            print("s:",s,"   a:",a,"   ｒ:",r,file=f)
+
                     expected_rewards.append(r)
+                    with open('log.txt', 'a') as f:
+                        print("s:",s,"   a:",a,"   expected_rewards:",expected_rewards,file=f)
+
                 max_reward = max(expected_rewards)
                 delta = max(delta, abs(max_reward - V[s]))
                 V[s] = max_reward
+                with open('log.txt', 'a') as f:
+                    print("s:",s,"   V[s]:",V[s],file=f)
 
             if delta < threshold:
                 break
 
         V_grid = self.dict_to_grid(V)
+        with open('log.txt', 'a') as f:
+            print("V_grid:",V_grid,file=f)
         return V_grid
 
 
@@ -97,14 +118,25 @@ class PolicyIterationPlanner(Planner):
                     action_prob = self.policy[s][a]
                     r = 0
                     for prob, next_state, reward in self.transitions_at(s, a):
-                        r += action_prob * prob * \
-                             (reward + gamma * V[next_state])
+                        rr = action_prob * prob * (reward + gamma * V[next_state])
+                        with open('log.txt', 'a') as f:
+                            print("s:",s,"   a:",a,"   ｒr:",rr,file=f)
+                        r += rr
+                        with open('log.txt', 'a') as f:
+                            print("s:",s,"   a:",a,"   ｒ:",r,file=f)
                     expected_rewards.append(r)
+                    with open('log.txt', 'a') as f:
+                        print("expected_rewards:",expected_rewards,file=f)
                 value = sum(expected_rewards)
+                with open('log.txt', 'a') as f:
+                    print("value V(s):",value,"   s:",s,file=f)
+
                 delta = max(delta, abs(value - V[s]))
                 V[s] = value
             if delta < threshold:
                 break
+        with open('log.txt', 'a') as f:
+            print("V:",V,file=f)
 
         return V
 
@@ -114,7 +146,10 @@ class PolicyIterationPlanner(Planner):
         actions = self.env.actions
 
         def take_max_action(action_value_dict):
-            return max(action_value_dict, key=action_value_dict.get)
+            take_mx_action = max(action_value_dict, key=action_value_dict.get)
+            with open('log.txt', 'a') as f:
+                print("take_max_action:",take_max_action,file=f)
+            return take_mx_action
 
         while True:
             update_stable = True
@@ -123,6 +158,8 @@ class PolicyIterationPlanner(Planner):
             self.log.append(self.dict_to_grid(V))
 
             for s in states:
+                with open('log.txt', 'a') as f:
+                    print("plan_no_s:",s,file=f)
                 # Get an action following to the current policy.
                 policy_action = take_max_action(self.policy[s])
 
@@ -141,6 +178,8 @@ class PolicyIterationPlanner(Planner):
                 for a in self.policy[s]:
                     prob = 1 if a == best_action else 0
                     self.policy[s][a] = prob
+                with open('log.txt', 'a') as f:
+                    print("koushinshita_policy:",self.policy,file=f)
 
             if update_stable:
                 # If policy isn't updated, stop iteration
@@ -148,4 +187,6 @@ class PolicyIterationPlanner(Planner):
 
         # Turn dictionary to grid
         V_grid = self.dict_to_grid(V)
+        with open('log.txt', 'a') as f:
+            print("V_grid:",V_grid,file=f)
         return V_grid

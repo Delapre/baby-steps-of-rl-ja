@@ -3,7 +3,11 @@ from tensorflow.python import keras as K
 import gym
 import gym_ple
 
-
+#os.putenv('SDL_VIDEODRIVER', 'fbcon')
+#os.environ["SDL_VIDEODRIVER"] = "dummy"
+from gym import envs
+envids = [spec.id for spec in envs.registry.all()]
+print([s for s in envids if "Catcher" in s ])
 def welcome():
     """
     Code to check installation of basic libraries

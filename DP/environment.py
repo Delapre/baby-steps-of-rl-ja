@@ -71,6 +71,8 @@ class Environment():
                 # Block cells are not included to the state.
                 if self.grid[row][column] != 9:
                     states.append(State(row, column))
+        with open('log.txt', 'a') as f:
+            print("states :",states,file=f)
         return states
 
     def transit_func(self, state, action):
@@ -156,6 +158,8 @@ class Environment():
         next_state, reward, done = self.transit(self.agent_state, action)
         if next_state is not None:
             self.agent_state = next_state
+        with open('log.txt', 'a') as f:
+            print("next:",next_state,"   reward:",reward,file=f)
 
         return next_state, reward, done
 

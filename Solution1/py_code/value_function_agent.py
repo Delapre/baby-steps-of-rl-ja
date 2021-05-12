@@ -120,7 +120,7 @@ class ValueFunctionTrainer(Trainer):
 
 
 def main(play):
-    env = CartPoleObserver(gym.make("CartPole-v0"))
+    env = CentrifugeObserver(gym.make("CartPole-v0"))
     trainer = ValueFunctionTrainer()
     path = trainer.logger.path_of("value_function_agent.pkl")
 
