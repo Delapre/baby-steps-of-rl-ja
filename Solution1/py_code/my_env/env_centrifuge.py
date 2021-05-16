@@ -1,9 +1,9 @@
 '''
 遠心分離機×4　ON OFF control
 '''
-+
-import sys
 
+import sys
+import random
 import gym
 import numpy as np
 import gym.spaces
@@ -12,8 +12,8 @@ import gym.spaces
 class CentrifugeEnv(gym.Env):
     '''
     燃料消費：0_max_syouhi_ryou l/mini
-    燃料消費変動：up_prob=0.2 keep_prob= 0.6 down_prob=0.2
-    input 液面高さ：h(t-1) , 燃料消費量：syouhi_ritsu , 液面速度：v(t-1) , 出力ポジション：p
+    燃料消費変動：up_prob=0.2 keep_prob= 0.6 down_prob=0.2   syouhi_hendo = 0.2
+    input 液面高さ：h(t-1) , 燃料消費量：syouhi_ryou , 液面速度：v(t-1) , 出力ポジション：p
     output 液面高さ：h(t) , 液面速度：v(t) , 液面加速度：a
     constants 低面積：s = 10000mm2  , 時間刻み：time_increments= 5
     state 出力：p [0,1,2,3,4]の5段階　処理量：p*40 l/min
@@ -89,7 +89,7 @@ class CentrifugeEnv(gym.Env):
         self.down_prob = 1-down_prob
 
         max_v = syori_pos * syori_ryou/ss
-        min_v = -mmax_syouhi_ryou*1000/ss
+        min_v = -max_syouhi_ryou*1000/ss
 
         # action_space, observation_space, reward_range を設定する
         self.action_space = gym.spaces.Discrete(max_action) 
@@ -103,24 +103,26 @@ class CentrifugeEnv(gym.Env):
         self.state = None
         self._reset()
 
-    def _syouhi_ryou(self,max_syouhi_ryou, pre_syori_ritsu,up_prob, keep_prob, down_prob):
 
-        p = ranfom.random()
+    def _syouhi_ryou(self, syouhi_ritsu_p):
 
-        if p <= self.up_prob:
-            syouhi_ritsu = self.pre_state + max_syouhi_ritsu*p
-            if syouhi_ritsu >= max_syouhi_ritsu :
-                syouhi_ritsu = max_syouhi_ritsu
+        self.syouhi_ritsu_p = syouhi_ritsu_p
+        p = random.random()
 
-        if self.up_prob < p and p < self.down_prob :
-            syouhi_ritsu = self.pre_state
+        if p <= up_prob:
+            syouhi_ryou = max_syouhi_ryou*(self.syouhi_ritsu_p + syouhi_hendou)
+            if syouhi_ryou >= max_syouhi_ryou :
+                syouhi_ryou = max_syouhi_ryou
 
-        if self.down_prob <= p :
-            syouhi_ritsu = pre_state - max_syouhi_ritsu*p
-            if 0 >= syouhi_ritsu : 
-                syouhi_ritsu = 0
+        if up_prob < p and p < down_prob :
+            syouhi_ryou = self.syouhi_ritsu_p * max_syouhi_ryou
 
-        return syouhi_ritsu , syouhi_ritsu * max_syouhi_ryou
+        if (1 - down_prob) <= p :
+            syouhi_ryou =  max_syouhi_ryou*(self.syouhi_ritsu_p-syouhi_hendou)
+            if 0 >= syouhi_ryou : 
+                syouhi_ryou = 0
+
+        return syouhi_ryou
 
     def _step_ekimen(self, action):
 
