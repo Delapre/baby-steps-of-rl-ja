@@ -7,6 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 import joblib
 import gym
+import my_env
 from fn_framework import FNAgent, Trainer, Observer
 
 
@@ -85,10 +86,9 @@ class ValueFunctionAgent(FNAgent):
         self.model.named_steps["estimator"].partial_fit(states, estimateds)
 
 
-class CartPoleObserver(Observer):
-
-    def transform(self, state):
-        return np.array(state).reshape((1, -1))
+class CentrifugeObserver(Observer):
+    def transform(self,state) :
+        return np.array(state)
 
 
 class ValueFunctionTrainer(Trainer):
@@ -120,7 +120,7 @@ class ValueFunctionTrainer(Trainer):
 
 
 def main(play):
-    env = CentrifugeObserver(gym.make("CartPole-v0"))
+    env = CentrifugeObserver(gym.make("my_env:centrifuge-v0"))
     trainer = ValueFunctionTrainer()
     path = trainer.logger.path_of("value_function_agent.pkl")
 
