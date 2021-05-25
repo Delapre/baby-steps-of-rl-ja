@@ -61,10 +61,11 @@ class CentrifugeEnv(gym.Env):
 
     # 燃料消費
     max_syouhi_ryou = 100 # l/min,
+    syouhi_hendo_ritsu = 0.1
     up_prob = 0.2,
     keep_prob = 0.6,
     down_prob = 0.2,
-    syouhi_params = [max_syouhi_ryou, up_prob , keep_prob, down_prob ]
+    syouhi_params = [max_syouhi_ryou, syouhi_hendo_ritsu, up_prob , keep_prob, down_prob ]
 
     # 液面計算
     ss = 10000 # mm2：低面積
@@ -82,7 +83,7 @@ class CentrifugeEnv(gym.Env):
     keep_reward = 0.1
     start_new_contrifuge = -0.5
     rewards = [keep_reward, start_new_contrifuge]
- 
+
     #----------------------------------------------
 
     metadata = {
@@ -91,7 +92,7 @@ class CentrifugeEnv(gym.Env):
     }
    # metadata = {'render.modes': ['human', 'ansi']}
 
-    def __init__(self, syouhi_params, episode_params, tank_params, contrifuge_params, rewards):
+    def __init__(self, syouhi_params, episode_params, tank_params, centrifuge_params, rewards):
         # 燃料消費：0_max_syouhi_ryou l/mini
         # 出力変動：up_prob=0.2 keep_prob= 0.6 down_prob=0.2
         self.max_syouhi_ryou, self.up_prob, self.keep_prob, self.down_prob,\
@@ -101,7 +102,7 @@ class CentrifugeEnv(gym.Env):
         self.syori_per_centrifuge, self.syori_pos, self.max_actions = centrifuge_params
         self.keep_reward, self.start_new_contrifuge = rewards
 
-        max_v = self.syori_pos * self.syori_per_centrofuge /self.ss
+        max_v = self.syori_pos * self.syori_per_centrifuge /self.ss
         min_v = -self.max_syouhi_ryou*1000/self.ss
 
         # action_space, observation_space, reward_range を設定する
