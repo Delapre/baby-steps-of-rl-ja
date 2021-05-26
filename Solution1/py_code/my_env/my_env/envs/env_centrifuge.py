@@ -99,7 +99,7 @@ class CentrifugeEnv(gym.Env):
              = syouhi_params
         self.time_increments, self.max_steps = episode_params
         self.h_max, self.ss = tank_params
-        self.syori_per_centrifuge, self.syori_pos, self.max_actions = centrifuge_params
+        self.syori_per_centrifuge, self.syouhi_hendo_ritsu, self.syori_pos, self.max_actions = centrifuge_params
         self.keep_reward, self.start_new_contrifuge = rewards
 
         max_v = self.syori_pos * self.syori_per_centrifuge /self.ss
@@ -123,20 +123,20 @@ class CentrifugeEnv(gym.Env):
         max_syouhi_ryou, up_prob, keep_prob, down_prob = self.syouhi_params
         self.syouhi_ritsu = syouhi_ritsu
 
-        syouhi_hendo = random.random()
-        if syouhi_hendo <= self.up_prob:
-            next_syouhi_ritsu = self.syouhi_ritsu + syouhi_hendo
+        tmp_p = random.random()
+        if tmp_p <= self.up_prob:
+            next_syouhi_ritsu = self.syouhi_ritsu + self.syouhi_hendo_ritsu
             syouhi_ryou = self.max_syouhi_ryou * next_syouhi_ritsu
             if syouhi_ryou >= self.max_syouhi_ryou :
                 syouhi_ryou = self.max_syouhi_ryou
                 next_syouhi_ritus = 1
 
-        if self.up_prob < syouhi_hendo and syouhi_hendo < down_prob :
+        if self.up_prob < tmp_p and tmp_p < down_prob :
             syouhi_ryou = self.syouhi_ritsu_p * max_syouhi_ryou
             next_syouhi_ritsu = syouhi_ritsu
 
-        if (1 - down_prob) <= syouhi_hendo :
-            next_syouhi_ritsu = self.syouhi_ritsu - syouhi_hendo
+        if (up_prob + keep_prob) <= tmp_p :
+            next_syouhi_ritsu = self.syouhi_ritsu - self.syouhi_hendo_ritsu
             syouhi_ryou =  max_syouhi_ryou*next_syouhi_ritsu
             if 0 >= syouhi_ryou : 
                 syouhi_ryou = 0
@@ -160,6 +160,8 @@ class CentrifugeEnv(gym.Env):
             燃料消費変動：up_prob=0.2 keep_prob= 0.6 down_prob=0.2   
         その確率は左記の確率で変動する     syouhi_hendo = 0.2
         '''
+
+        # 燃料消費の積分
         one_step_shouhi_ryou = []
         for i in range(self.time_increments):
             if i == 0:
