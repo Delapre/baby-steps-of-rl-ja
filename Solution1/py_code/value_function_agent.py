@@ -9,6 +9,7 @@ import joblib
 import gym
 import my_env
 from fn_framework import FNAgent, Trainer, Observer
+from env_centrifuge import CentrifugeEnv
 
 
 class ValueFunctionAgent(FNAgent):
@@ -93,7 +94,7 @@ class CentrifugeObserver(Observer):
 
 class ValueFunctionTrainer(Trainer):
 
-    def train(self, env, episode_count=220, epsilon=0.1, initial_count=-1,
+    def train(self, env, episode_count=900, epsilon=0.1, initial_count=-1,
               render=False):
         actions = list(range(env.action_space.n))
         agent = ValueFunctionAgent(epsilon, actions)
@@ -120,7 +121,8 @@ class ValueFunctionTrainer(Trainer):
 
 
 def main(play):
-    env = CentrifugeObserver(gym.make("my_env:centrifuge-v0"))
+    # env = CentrifugeObserver(gym.make("my_env:centrifuge-v0"))
+    env = CentrifugeEnv()
     trainer = ValueFunctionTrainer()
     path = trainer.logger.path_of("value_function_agent.pkl")
 
