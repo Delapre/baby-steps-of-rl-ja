@@ -177,8 +177,8 @@ class CentrifugeEnv(gym.Env):
         self.action_space = gym.spaces.Discrete(max_actions) 
         self.observation_space = gym.spaces.Box(
             # 液面高さ,液面速度,液面加速度,消費率
-            low=np.array([0,min_v,a_max,0]),
-            high=np.array([600,max_v,-a_max,1])
+            low=np.array([0,min_v,a_max,0,0]),
+            high=np.array([600,max_v,-a_max,1,1])
             )
         # self.reward_range = [-1., 100.]
 
@@ -217,7 +217,7 @@ class CentrifugeEnv(gym.Env):
         else:
             kado_su_t = tmp_kado_su
 
-        self.state = [h_t,v_t,a_t,self.next_syouhi_ritsu, kado_su_t]
+        self.state = np.array([h_t,v_t,a_t,self.next_syouhi_ritsu, kado_su_t])
 
         done = self._is_done(h_t)
 
@@ -242,7 +242,7 @@ class CentrifugeEnv(gym.Env):
 
         self.steps += 1
         # print(self.steps)
-        return self.state,reward,done,self.steps
+        return self.state,reward,done,{}
 
 
     def reset(self):
