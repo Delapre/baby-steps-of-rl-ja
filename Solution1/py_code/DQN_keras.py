@@ -14,7 +14,7 @@ from env_centrifuge import CentrifugeEnv
 env = CentrifugeEnv()
 # env = DummyVecEnv([lambda: env])
 
-# ENV_NAME = 'CartPole-v0'
+ENV_NAME = 'Centrifuge-v0'
 
 
 # Get the environment and extract the number of actions.

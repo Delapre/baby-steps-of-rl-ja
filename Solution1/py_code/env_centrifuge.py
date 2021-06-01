@@ -53,13 +53,13 @@ Episode Termination:
 # constants
 #----------------------------------------------
 # 遠心分離機稼働率変動
-syori_per_centrifuge = 30*10000 #l/min
+syori_per_centrifuge = 30*1000 #l/min
 syori_pos = 5 # 出力ポジション 0,1,2,3,4
 max_actions = 3 # 分離器の増減　 +1,0,-1
 # centrifuge_params = (syori_per_centrifuge, syori_pos, max_actions )
 
 # 燃料消費
-max_syouhi_ryou = 100*10000 # l/min,
+max_syouhi_ryou = 100*1000 # l/min,
 syouhi_hendo_ritsu = 0.1
 up_prob = 0.1
 keep_prob = 0.8
@@ -83,7 +83,7 @@ max_actions = 3
 
 # rewards
 keep_reward = 0.1
-start_new_contrifuge = -0.5
+start_new_contrifuge = -0.2
 # rewards = (keep_reward, start_new_contrifuge)
 
 #----------------------------------------------
@@ -190,7 +190,7 @@ class CentrifugeEnv(gym.Env):
         self.reset()
 
     def step(self, action):
-        self.action = action
+        self.action = action-1
 
         # input 液面高さ：h(t-1) , 燃料消費量：syouhi , 液面速度：v(t-1) , 遠心分離機稼働数：n
         # output 液面高さ：h(t) , 液面速度：v(t) , 液面加速度：a
@@ -209,7 +209,7 @@ class CentrifugeEnv(gym.Env):
         a_t = (v_t - v_p)/time_increments
         h_t = h_p + self.step_ryou/ss
 
-        tmp_kado_su = kado_su_p + (action - 1)
+        tmp_kado_su = kado_su_p + self.action
         if tmp_kado_su >= 4:
             kado_su_t = 4
         elif 0 >= tmp_kado_su:
@@ -217,7 +217,7 @@ class CentrifugeEnv(gym.Env):
         else:
             kado_su_t = tmp_kado_su
 
-        self.state = np.array([h_t,v_t,a_t,self.next_syouhi_ritsu, kado_su_t])
+        self.state = np.array([h_t,v_t,a_t,self.next_syouhi_ritsu, int(kado_su_t)])
 
         done = self._is_done(h_t)
 
@@ -266,17 +266,17 @@ class CentrifugeEnv(gym.Env):
         self.tmp_ryou, self.tmp_syouhi_ritsu = self._one_step_syouhi(self.syouhi_ritsu_0)
         self.a_0 = self.tmp_ryou / (time_increments**2)
 
-        self.state = [self.h_0, self.v_0, self.a_0, self.tmp_syouhi_ritsu, self.kado_su_0]
+        self.state = [self.h_0, self.v_0, self.a_0, self.tmp_syouhi_ritsu, int(self.kado_su_0)]
 
         self.done = False
         self.steps_beyond_done = None
 
         return self.state
 
-    def render(self, mode='console', close=False):
+    def render(self, mode='human', close=False):
         # human の場合はコンソールに出力。ansiの場合は StringIO を返す
-        if mode != 'console':
-            raise NotImplementedError
+        # if mode != 'console':
+            # raise NotImplementedError
         
         self.h, self.v, self.a, self.syouhi_ritsu, self.kado_su = self.state
         syutsuryoku = math.floor(self.syouhi_ritsu*10)
@@ -285,8 +285,8 @@ class CentrifugeEnv(gym.Env):
         if self.action != None:
             print("action : ",self.action-1)
         print("centrifuge : ",end = "")
-        print(" on "*self.kado_su, end = "")
-        print("off "*(syori_pos-self.kado_su-1),end = "")
+        print(" on "*int(self.kado_su), end = "")
+        print("off "*int(syori_pos-self.kado_su-1),end = "")
         print("           ",end = "")
         print("syutsuryoku  :",end = "")
         print("*"*syutsuryoku,end = "")
