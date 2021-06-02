@@ -10,8 +10,8 @@ while True :
 
 
     action = env.action_space.sample()
-    
-    print("action  : ",action,"   state : ",state)
+    ob_action = action - 1
+    print("action  : ",ob_action,"   state : ",state)
     state, reward, done, info, = env.step(action)
     
     env.render()
