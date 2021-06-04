@@ -49,7 +49,7 @@ start = time.time()
 # Okay, now it's time to learn something! We visualize the training here for show, but this
 # slows down training quite a lot. You can always safely abort the training prematurely using
 # Ctrl + C.
-dqn.fit(env, nb_steps=6000*2, visualize=False, nb_max_episode_steps=60, verbose=2)
+dqn.fit(env, nb_steps=30000, visualize=False, nb_max_episode_steps=60, verbose=2)
 
 elapsed_time = time.time() - start
 # After training is done, we save the final weights.

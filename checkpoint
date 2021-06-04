@@ -1,2 +1,2 @@
-model_checkpoint_path: "dqn_Centrifuge-v0_weights.h5f"
-all_model_checkpoint_paths: "dqn_Centrifuge-v0_weights.h5f"
+model_checkpoint_path: "dqn_{ENV_NAME}_weights.h5f"
+all_model_checkpoint_paths: "dqn_{ENV_NAME}_weights.h5f"
