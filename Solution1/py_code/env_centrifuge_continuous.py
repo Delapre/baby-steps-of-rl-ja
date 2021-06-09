@@ -84,7 +84,7 @@ max_actions = 3
 # rewards
 keep_reward = 0.5
 over_flow = -1
-start_new_contrifuge = -0.3
+start_new_contrifuge = -0.4
 empty = -1
 # rewards = (keep_reward, start_new_contrifuge)
 
@@ -189,6 +189,7 @@ class CentrifugeEnv(gym.Env):
         self.steps = 0
         self.viewer = None
         self.state = None
+        self.continuous = None
         self.reset()
 
     def step(self, action):
@@ -258,28 +259,31 @@ class CentrifugeEnv(gym.Env):
         p_s = random.random()
         p_k = random.random()
         
-        self.h_0 = p_t * h_max
-
-        self.syouhi_ritsu_0 = p_s
-
-        if p_k != 1 :
-            self.kado_su_0 = math.floor(p_k * syori_pos)
-        else:
-            self.kado_su_0 = syori_pos - 1
-
-        self.v_0 = (self.kado_su_0 * syori_per_centrifuge - \
-            self.syouhi_ritsu_0 * max_syouhi_ryou) / ss * time_increments
-
-        self.tmp_ryou, self.tmp_syouhi_ritsu = self._one_step_syouhi(self.syouhi_ritsu_0)
-        self.a_0 = self.tmp_ryou / (time_increments**2)
-
-        self.state = [self.h_0, self.v_0, self.a_0, self.tmp_syouhi_ritsu, int(self.kado_su_0)]
-
         self.done = False
         self.steps_beyond_done = None
         self.steps = 0
 
-        return self.state
+        if self.continuous:
+            return self.state
+        else:
+            self.h_0 = p_t * h_max
+
+            self.syouhi_ritsu_0 = p_s
+
+            if p_k != 1 :
+                self.kado_su_0 = math.floor(p_k * syori_pos)
+            else:
+                self.kado_su_0 = syori_pos - 1
+
+            self.v_0 = (self.kado_su_0 * syori_per_centrifuge - \
+                self.syouhi_ritsu_0 * max_syouhi_ryou) / ss * time_increments
+
+            self.tmp_ryou, self.tmp_syouhi_ritsu = self._one_step_syouhi(self.syouhi_ritsu_0)
+            self.a_0 = self.tmp_ryou / (time_increments**2)
+
+            self.state = [self.h_0, self.v_0, self.a_0, self.tmp_syouhi_ritsu, int(self.kado_su_0)]
+
+            return self.state
 
     def render(self, mode='human', close=False):
         # human の場合はコンソールに出力。ansiの場合は StringIO を返す

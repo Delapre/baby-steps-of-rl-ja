@@ -3,9 +3,9 @@ import gym
 import time
 
 from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, Activation, Flatten, BatchNormalization
-from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import Input
+from tensorflow.keras.layers import Dense, Activation, Flatten,LSTM
+from tensorflow.keras.optimizers import Adam
 
 from rl.agents.dqn import DQNAgent
 from rl.policy import BoltzmannQPolicy
@@ -40,10 +40,9 @@ nb_actions = env.action_space.n
 
 # Next, we build a very simple model.
 model = Sequential()
-model.add(Flatten(input_shape=(window_haba,) + env.observation_space.shape))
-model.add(BatchNormalization())
-model.add(Dense(16))
-model.add(Activation('relu'))
+model.add(LSTM(16, input_shape=(window_haba,) + env.observation_space.shape))
+# model.add(Dense(16))
+# model.add(Activation('relu'))
 model.add(Dense(16))
 model.add(Activation('relu'))
 model.add(Dense(16))
@@ -51,6 +50,20 @@ model.add(Activation('relu'))
 model.add(Dense(nb_actions))
 model.add(Activation('linear'))
 
+# print(env.observation_space.shape)
+# input_dim = (window_haba,) + env.observation_space.shape
+# input_dim = (4,5)
+# print("input_dim :",input_dim)
+# input_tensor = Input(shape = window_haba,env.observation_space.shape)
+# input_tensor = Input(input_dim)
+
+# x = LSTM(16)(input_tensor)
+# x = Flatten(x) 
+# x = Dense(16,activation = 'relu')(x)
+# x = Dense(16,activation = 'relu')(x)
+# out_put = Dense(n_actions,activation = 'linear')
+
+# lstm_model = Model(input_tensor,out_put)
 
 print(model.summary())
 
@@ -67,7 +80,7 @@ start = time.time()
 # Okay, now it's time to learn something! We visualize the training here for show, but this
 # slows down training quite a lot. You can always safely abort the training prematurely using
 # Ctrl + C.
-dqn.fit(env, nb_steps=10000, visualize=False, nb_max_episode_steps=60, verbose=2)
+dqn.fit(env, nb_steps=60000, visualize=False, nb_max_episode_steps=60, verbose=2)
 
 elapsed_time = time.time() - start
 # After training is done, we save the final weights.

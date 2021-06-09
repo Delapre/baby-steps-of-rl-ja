@@ -7,7 +7,7 @@ from env_centrifuge import CentrifugeEnv
 env = CentrifugeEnv()
 
 model = A2C('MlpPolicy', env, verbose=1)
-model.learn(total_timesteps=10000)
+model.learn(total_timesteps=100000)
 
 obs = env.reset()
 for i in range(1000):
