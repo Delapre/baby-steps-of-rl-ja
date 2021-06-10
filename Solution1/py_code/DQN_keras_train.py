@@ -10,6 +10,7 @@ from tensorflow.keras import Input
 from rl.agents.dqn import DQNAgent
 from rl.policy import BoltzmannQPolicy
 from rl.memory import SequentialMemory
+from dqn_models import DQNModels
 
 from env_centrifuge import CentrifugeEnv
 

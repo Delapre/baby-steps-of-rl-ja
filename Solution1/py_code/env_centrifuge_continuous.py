@@ -83,9 +83,9 @@ max_actions = 3
 
 # rewards
 keep_reward = 0.5
-over_flow = -1
-start_new_contrifuge = -0.4
-empty = -1
+over_flow = -3
+start_new_contrifuge = -2
+empty = -3
 # rewards = (keep_reward, start_new_contrifuge)
 
 #----------------------------------------------
@@ -183,7 +183,6 @@ class CentrifugeEnv(gym.Env):
             high=np.array([600,max_v,-a_max,1,1])
             )
         # self.reward_range = [-1., 100.]
-
         self.action = None
         self.steps_beyond_done = None
         self.steps = 0
@@ -213,7 +212,9 @@ class CentrifugeEnv(gym.Env):
         tmp_h_t = h_p + (kado_su_p * syori_per_centrifuge * 5 - self.step_ryou)/ss
         if tmp_h_t >= h_max:
             h_t = h_max
-        else :
+        elif 0 >= tmp_h_t :
+            h_t = 0
+        else:
             h_t = tmp_h_t
 
         tmp_kado_su = kado_su_p + self.action
@@ -262,6 +263,7 @@ class CentrifugeEnv(gym.Env):
         self.done = False
         self.steps_beyond_done = None
         self.steps = 0
+        self.episode_rewards = 0
 
         if self.continuous:
             return self.state
@@ -299,17 +301,21 @@ class CentrifugeEnv(gym.Env):
             print("   centrifuge : ",self.kado_su,"   ",end = "")
             print(" on "*int(self.kado_su), end = "")
             print("off "*int(syori_pos-self.kado_su-1),end = "")
-            print("           ",end = "")
+            print("      ",end = "")
             print("syutsuryoku  :",syutsuryoku,"   ",end = "")
             print("*"*syutsuryoku,end = "")
             print("-"*(10-syutsuryoku),end = "")
-            print("           ",end = "")
+            print("      ",end = "")
             print("Hight_of_ekimen :",hight_of_ekimen,"  ",end = "")
-            print("*"*hight_of_ekimen,end = "")
-            print("-"*(10-hight_of_ekimen),end = "")
-            print("           ",end = "")
-            print("reward :",self.reward,"   action : ",self.action)
-
+            if self.h == h_max:
+                print("++++++++++",end = "")
+            elif self.h == 0:
+                print("==========",end = "")
+            else:
+                print("*"*hight_of_ekimen,end = "")
+                print("-"*(10-hight_of_ekimen),end = "")
+            print("      ",end = "")
+            print("reward :",round(self.reward,1),"   action : ",self.action, "     episode_rewards : ",round(self.episode_rewards,1))
         # outfile = StringIO() if mode == 'ansi' else sys.stdout
         # outfile.write('\n'.join(' '.join(
                 # self.FIELD_TYPES[elem] for elem in row
@@ -329,18 +335,17 @@ class CentrifugeEnv(gym.Env):
         # 枠の中に液面が入っていれば keep_rewards
         # 新しい遠心分離機を稼働したら start_new_machiine（マイナス）
 
-        if h>0 and h_max >h :
-            r = keep_reward
-        elif h_max <= h:
+        if h_max <= h:
             r = over_flow
         elif h <= 0:
             r = empty
         else:
-            r = 0
+            r = keep_reward
 
         if action == 1 :
             r += start_new_contrifuge
 
+        self.episode_rewards +=r
         return r
 
     def _is_done(self, h):
