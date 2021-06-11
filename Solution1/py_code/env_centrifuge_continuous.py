@@ -83,9 +83,9 @@ max_actions = 3
 
 # rewards
 keep_reward = 0.5
-over_flow = -3
+over_flow = -4
 start_new_contrifuge = -2
-empty = -3
+empty = -4
 # rewards = (keep_reward, start_new_contrifuge)
 
 #----------------------------------------------
