@@ -260,6 +260,7 @@ class CentrifugeEnv(gym.Env):
         p_s = random.random()
         p_k = random.random()
         
+        self.rener_state = []
         self.done = False
         self.steps_beyond_done = None
         self.steps = 0
@@ -293,6 +294,9 @@ class CentrifugeEnv(gym.Env):
             # raise NotImplementedError
         
         self.h, self.v, self.a, self.syouhi_ritsu, self.kado_su = self.state
+        self.render_state.append(self.state)
+
+
         syutsuryoku = math.floor(self.syouhi_ritsu*10)
         hight_of_ekimen = math.floor(self.h/h_max*10)
 
