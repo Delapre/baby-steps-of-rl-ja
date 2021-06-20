@@ -9,13 +9,17 @@ from rl.agents.dqn import DQNAgent
 from rl.policy import BoltzmannQPolicy
 from rl.memory import SequentialMemory
 
-from env_centrifuge import CentrifugeEnv
+from dqn_models import DQNModels
+
+from env_centrifuge_continuous import CentrifugeEnv
 #----------------------------------------------
 # パラメータ
 #----------------------------------------------
 
 window_haba = 4
+model_params = "./Solution1/kekka/dqn_lstm_Centrifuge-v0_7"
 
+window_haba = 8
 #----------------------------------------------
 
 
@@ -35,19 +39,14 @@ ENV_NAME = 'Centrifuge-v0'
 # np.random.seed(123)
 # env.seed(123)
 nb_actions = env.action_space.n
+print("*** nb_actions : ",nb_actions)
+input_tensor =  (window_haba,) + env.observation_space.shape
+print("*** input_tensor : ",input_tensor)
 
 # Next, we build a very simple model.
-model = Sequential()
-model.add(Flatten(input_shape=(window_haba,) + env.observation_space.shape))
-model.add(BatchNormalization())
-model.add(Dense(16))
-model.add(Activation('relu'))
-model.add(Dense(16))
-model.add(Activation('relu'))
-model.add(Dense(16))
-model.add(Activation('relu'))
-model.add(Dense(nb_actions))
-model.add(Activation('linear'))
+dqn_model = DQNModels()
+model = dqn_model.dqn_lstm(input_tensor,nb_actions)
+
 print(model.summary())
 
 # Finally, we configure and compile our agent. You can use every built-in tensorflow.keras optimizer and
@@ -63,7 +62,6 @@ dqn.compile(Adam(learning_rate=1e-3), metrics=['mae'])
 # Ctrl + C.
 # dqn.fit(env, nb_steps=600, visualize=False, nb_max_episode_steps=60, verbose=2)
 
-# After training is done, we save the final weights.
 dqn.load_weights('dqn_{ENV_NAME}_weights.h5f')
 
 # Finally, evaluate our algorithm for 5 episodes.

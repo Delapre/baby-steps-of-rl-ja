@@ -33,7 +33,7 @@ window_haba = 8
 # log_filepath = "./Solution1/py_code/logs/" + ENV_NAME
 # print(log_filepath)
 
-model_mei = "dqn_latm"
+model_mei = "dqn_lstm"
 tsuika = None
 ###############################################
 
@@ -67,7 +67,7 @@ model.summary()
 start = time.time()
 
 saki,revision,param_data = rev.rev(tsuika,ENV_NAME,model_mei)
-log_filepath = saki + revision + "/logs"
+log_filepath = saki + "/logs"
 callbacks = [TensorBoard (log_dir=log_filepath, histogram_freq=0)]
 
 # Okay, now it's time to learn something! We visualize the training here for show,
@@ -82,8 +82,8 @@ elapsed_time = time.time() - start
 ###############################################
 # post process
 #----------------------------------------------
-dqn.save_weights(saki + revision + 'dqn_{ENV_NAME}_weights.h5f', overwrite=True)
+dqn.save_weights(saki + "/" + "model_weights.h5f", overwrite=True)
 
 # Finally, evaluate our algorithm for 5 episodes.
-dqn.test(env, nb_episodes=5, visualize=True)
+dqn.test(env, nb_episodes=5, visualize=False)
 print ("elapsed_time:{0}".format(elapsed_time) + "[sec]")

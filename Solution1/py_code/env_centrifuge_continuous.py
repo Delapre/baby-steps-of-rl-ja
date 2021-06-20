@@ -6,15 +6,16 @@ import sys
 import random
 import gym
 import numpy as np
-import gym.spaces
+# import gym.spaces
+from gym import spaces, logger
 import math
 
 '''
-燃料消費：0_max_syouhi_ryou l/mini
-燃料消費変動：up_prob=0.2 keep_prob= 0.6 down_prob=0.2   syouhi_hendo = 0.2
+燃料消費：0_MAX_SYOUHI_RYOU l/mini
+燃料消費変動：UP_PROB=0.1 KEEP_PROB= 0.8 DOWN_PROB=0.1   syouhi_hendo = 0.2
 input 液面高さ：h(t-1) , 燃料消費量：syouhi_ryou , 液面速度：v(t-1) , 出力ポジション：p
 output 液面高さ：h(t) , 液面速度：v(t) , 液面加速度：a
-constants 低面積：s = 10000mm2  , 時間刻み：time_increments= 5
+constants 低面積：s = 10000mm2  , 時間刻み：TIME_INCREMENTS= 5
 state 出力：p [0,1,2,3,4]の5段階　処理量：p*40 l/min
 
 obsevation
@@ -22,7 +23,7 @@ obsevation
     Num     Observation         Min                  Max
     0       液面位置            0                    600
     1       液面速度            処理0,消費max        処理max,消費0
-    2       液面加速度          -(max_v-min_v)/time  (max_v-min_v)/time_increments
+    2       液面加速度          -(MAX_V-MIN_V)/time  (MAX_V-MIN_V)/TIME_INCREMENTS
     3       燃料消費率          0                    100
     4       遠心分離機稼働数    0                    5
 
@@ -34,7 +35,7 @@ Actions:
     2       遠心分離機稼働数　一台追加
 
 Reward:
-    枠の中に液面が入っていれば keep_rewards
+    枠の中に液面が入っていれば KEEP_REWARDs
     新しい遠心分離機を稼働したら start_new_machiine（マイナス）
 
 Starting state:
@@ -53,40 +54,48 @@ Episode Termination:
 # constants
 #----------------------------------------------
 # 遠心分離機稼働率変動
-syori_per_centrifuge = 30*1000 #l/min
-syori_pos = 5 # 出力ポジション 0,1,2,3,4
-max_actions = 3 # 分離器の増減　 +1,0,-1
-# centrifuge_params = (syori_per_centrifuge, syori_pos, max_actions )
+SYORI_PER_CENTRIFUGE = 30*1000 #l/min
+SYORI_POS = 5 # 出力ポジション 0,1,2,3,4
+MAX_ACTIONS = 3 # 分離器の増減　 +1,0,-1
+# centrifuge_params = (SYORI_PER_CENTRIFUGE, SYORI_POS, MAX_ACTIONS )
 
 # 燃料消費
-max_syouhi_ryou = 100*1000 # l/min,
-syouhi_hendo_ritsu = 0.1
-up_prob = 0.1
-keep_prob = 0.8
-down_prob = 0.1
-# syouhi_params = (max_syouhi_ryou, syouhi_hendo_ritsu, up_prob , keep_prob, down_prob )
+MAX_SYOUHI_RYOU = 100*1000 # l/min,
+SYOUHI_HENDO_RITSU = 0.1
+UP_PROB = 0.1
+KEEP_PROB = 0.8
+DOWN_PROB = 0.1
+# syouhi_params = (MAX_SYOUHI_RYOU, SYOUHI_HENDO_RITSU, UP_PROB , KEEP_PROB, DOWN_PROB )
 
 # 液面計算
-ss = 10000 # mm2：低面積
-h_max = 1000 # タンク高さ
-# tank_params = (h_max,ss)
+SS = 10000 # mm2：低面積
+H_MAX = 1000 # タンク高さ
+# tank_params = (H_MAX,SS)
 
 # episode_params
-time_increments = 5 # 時間刻み
-max_steps = 60 # エピソード
-# episode_params = (time_increments, max_steps)
+TIME_INCREMENTS = 5 # 時間刻み
+MAX_STEPS = 60 # エピソード
+# episode_params = (TIME_INCREMENTS, MAX_STEPS)
 
 # state
 
-# acrion
-max_actions = 3
-
 # rewards
-keep_reward = 0.5
-over_flow = -4
-start_new_contrifuge = -2
-empty = -4
-# rewards = (keep_reward, start_new_contrifuge)
+KEEP_REWARD = 0.5
+OVER_FLOW = -4
+START_NEW_CONTRIFUGE = -2
+EMPTY = -4
+# rewards = (KEEP_REWARD, START_NEW_CONTRIFUGE)
+
+# 燃料消費：0_MAX_SYOUHI_RYOU l/mini
+# 出力変動：UP_PROB=0.2 KEEP_PROB= 0.6 DOWN_PROB=0.2
+
+MAX_V = SYORI_POS * SYORI_PER_CENTRIFUGE /SS
+MIN_V = -MAX_SYOUHI_RYOU/SS
+
+# action_space, observation_space, reward_range を設定する
+# 液面加速度はstep内の出力変動がなければ0だが、出力変動があるため、加速度が発生する
+# 5secで 消費率が最大振れ幅の時の速度変動/TIME_INCREMENTS
+A_MAX = MAX_SYOUHI_RYOU*SYOUHI_HENDO_RITSU*TIME_INCREMENTS/TIME_INCREMENTS
 
 #----------------------------------------------
 
@@ -96,20 +105,20 @@ empty = -4
 
     # tmp_p = random.random()
 
-    # if tmp_p <= up_prob:
-        # next_syouhi_ritsu = self.syouhi_ritsu + syouhi_hendo_ritsu
+    # if tmp_p <= UP_PROB:
+        # next_syouhi_ritsu = self.syouhi_ritsu + SYOUHI_HENDO_RITSU
         # if next_syouhi_ritsu >= 1:
             # next_syouhi_ritus = 1
 
-    # if up_prob < tmp_p and tmp_p < up_prob+keep_prob :
+    # if UP_PROB < tmp_p and tmp_p < UP_PROB+KEEP_PROB :
         # next_syouhi_ritsu = self.syouhi_ritsu
 
-    # if up_prob + keep_prob <= tmp_p :
-        # next_syouhi_ritsu = syouhi_ritsu - syouhi_hendo_ritsu
+    # if UP_PROB + KEEP_PROB <= tmp_p :
+        # next_syouhi_ritsu = syouhi_ritsu - SYOUHI_HENDO_RITSU
         # if 0 >= next_syouhi_ritsu : 
             # next_syouhi_ritsu = 0
 
-    # syouhi_ryou = next_syouhi_ritsu*max_syouhi_ryou
+    # syouhi_ryou = next_syouhi_ritsu*MAX_SYOUHI_RYOU
 
     # return syouhi_ryou, next_syouhi_ritsu
 
@@ -118,7 +127,7 @@ empty = -4
 class CentrifugeEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
-        # 'video.frames_per_second': 50
+        'video.frames_per_second': 5
     }
 
     # 1clock分の燃料消費量
@@ -128,59 +137,49 @@ class CentrifugeEnv(gym.Env):
 
         tmp_p = random.random()
 
-        if tmp_p <= up_prob:
-            next_syouhi_ritsu = self.syouhi_ritsu + syouhi_hendo_ritsu
+        if tmp_p <= UP_PROB:
+            next_syouhi_ritsu = self.syouhi_ritsu + SYOUHI_HENDO_RITSU
             if next_syouhi_ritsu >= 1:
                 next_syouhi_ritsu = 1
 
-        if up_prob < tmp_p and tmp_p < up_prob+keep_prob :
+        if UP_PROB < tmp_p and tmp_p < UP_PROB+KEEP_PROB :
             next_syouhi_ritsu = self.syouhi_ritsu
 
-        if up_prob + keep_prob <= tmp_p :
-            next_syouhi_ritsu = syouhi_ritsu - syouhi_hendo_ritsu
+        if UP_PROB + KEEP_PROB <= tmp_p :
+            next_syouhi_ritsu = syouhi_ritsu - SYOUHI_HENDO_RITSU
             if 0 >= next_syouhi_ritsu : 
                 next_syouhi_ritsu = 0
 
-        syouhi_ryou = next_syouhi_ritsu*max_syouhi_ryou
+        syouhi_ryou = next_syouhi_ritsu*MAX_SYOUHI_RYOU
 
         return [syouhi_ryou, next_syouhi_ritsu]
 
     # 1step分の燃料消費の積分
     def _one_step_syouhi(self,syouhi_ritsu):
         self.syouhi_ritsu_p = syouhi_ritsu
-        one_step_syouhi = []
-        for i in range(time_increments-1):
+        self.one_step_syouhi = []
+        for i in range(TIME_INCREMENTS-1):
             if i == 0:
                 tmp_step_syouhi = self._syouhi_ryou(self.syouhi_ritsu_p)
             else:
                 tmp_syouhi_ritsu = np.array(tmp_step_syouhi)[1]
-                one_step_syouhi.append(self._syouhi_ryou(tmp_syouhi_ritsu))
+                self.one_step_syouhi.append(self._syouhi_ryou(tmp_syouhi_ritsu))
                                     
-        one_step_ryou = sum(np.array(one_step_syouhi)[:,0])
-        one_step_ritsu = np.array(one_step_syouhi)[-1,1]               
+        # 最終clockの情報だけreturn
+        # one_step_ryou = sum(np.array(one_step_syouhi)[:,0])
+        # one_step_ritsu = np.array(one_step_syouhi)[-1,1]               
 
-        return one_step_ryou, one_step_ritsu 
-
+        # return one_step_ryou, one_step_ritsu 
+        return self.one_step_syouhi
 
     # metadata = {'render.modes': ['human', 'ansi']}
 #    def __init__(self, syouhi_params, episode_params, tank_params, centrifuge_params, rewards):
     def __init__(self):
-        # 燃料消費：0_max_syouhi_ryou l/mini
-        # 出力変動：up_prob=0.2 keep_prob= 0.6 down_prob=0.2
-
-        max_v = syori_pos * syori_per_centrifuge /ss
-        min_v = -max_syouhi_ryou/ss
-
-        # action_space, observation_space, reward_range を設定する
-        # 液面加速度はstep内の出力変動がなければ0だが、出力変動があるため、加速度が発生する
-        # 5secで 消費率が最大振れ幅の時の速度変動/time_increments
-        a_max = max_syouhi_ryou*syouhi_hendo_ritsu*time_increments/time_increments
-
-        self.action_space = gym.spaces.Discrete(max_actions) 
-        self.observation_space = gym.spaces.Box(
+        self.action_space = spaces.Discrete(MAX_ACTIONS) 
+        self.observation_space = spaces.Box(
             # 液面高さ,液面速度,液面加速度,消費率
-            low=np.array([0,min_v,a_max,0,0]),
-            high=np.array([600,max_v,-a_max,1,1])
+            low=np.array([0,MIN_V,A_MAX,0,0]),
+            high=np.array([600,MAX_V,-A_MAX,1,1])
             )
         # self.reward_range = [-1., 100.]
         self.action = None
@@ -196,22 +195,23 @@ class CentrifugeEnv(gym.Env):
 
         # input 液面高さ：h(t-1) , 燃料消費量：syouhi , 液面速度：v(t-1) , 遠心分離機稼働数：n
         # output 液面高さ：h(t) , 液面速度：v(t) , 液面加速度：a
-        # constants 低面積：ss 
+        # constants 低面積：SS 
 
         h_p, v_p, a_p, syouhi_ritsu_p, kado_su_p = self.state
 
         '''
         1step：5secの燃料消費を積み上げる
         燃料消費は毎秒毎に変動率分だけ下記の確率で増減、または維持する
-            燃料消費変動：up_prob=0.2 keep_prob= 0.6 down_prob=0.2   
+            燃料消費変動：UP_PROB=0.2 KEEP_PROB= 0.6 DOWN_PROB=0.2   
         その確率は左記の確率で変動する     syouhi_hendo = 0.2
         '''
-        self.step_ryou, self.next_syouhi_ritsu = self._one_step_syouhi(syouhi_ritsu_p)
-        v_t = (kado_su_p * syori_per_centrifuge * 5 - self.step_ryou/time_increments)/ss
-        a_t = (v_t - v_p)/time_increments
-        tmp_h_t = h_p + (kado_su_p * syori_per_centrifuge * 5 - self.step_ryou)/ss
-        if tmp_h_t >= h_max:
-            h_t = h_max
+        tmp_one_step_syouhi = np.array(self._one_step_syouhi(syouhi_ritsu_p)) 
+        self.step_ryou, self.next_syouhi_ritsu = tmp_one_step_syouhi[-1,:]
+        v_t = (kado_su_p * SYORI_PER_CENTRIFUGE * 5 - self.step_ryou/TIME_INCREMENTS)/SS
+        a_t = (v_t - v_p)/TIME_INCREMENTS
+        tmp_h_t = h_p + (kado_su_p * SYORI_PER_CENTRIFUGE * 5 - self.step_ryou)/SS
+        if tmp_h_t >= H_MAX:
+            h_t = H_MAX
         elif 0 >= tmp_h_t :
             h_t = 0
         else:
@@ -251,6 +251,7 @@ class CentrifugeEnv(gym.Env):
         # print(self.steps)
         # return self.state,reward,done
         return self.state,self.reward,self.done,{}
+        # return self.state,self.reward,self.done,tmp_one_step_syouhi
         # return self.state,reward,done,self.steps
 
 
@@ -266,52 +267,245 @@ class CentrifugeEnv(gym.Env):
         self.steps = 0
         self.episode_rewards = 0
 
+        self.viewer = None
         if self.continuous:
             return self.state
         else:
-            self.h_0 = p_t * h_max
+            self.h_0 = p_t * H_MAX
 
             self.syouhi_ritsu_0 = p_s
 
             if p_k != 1 :
-                self.kado_su_0 = math.floor(p_k * syori_pos)
+                self.kado_su_0 = math.floor(p_k * SYORI_POS)
             else:
-                self.kado_su_0 = syori_pos - 1
+                self.kado_su_0 = SYORI_POS - 1
 
-            self.v_0 = (self.kado_su_0 * syori_per_centrifuge - \
-                self.syouhi_ritsu_0 * max_syouhi_ryou) / ss * time_increments
-
-            self.tmp_ryou, self.tmp_syouhi_ritsu = self._one_step_syouhi(self.syouhi_ritsu_0)
-            self.a_0 = self.tmp_ryou / (time_increments**2)
+            self.v_0 = (self.kado_su_0 * SYORI_PER_CENTRIFUGE - \
+                self.syouhi_ritsu_0 * MAX_SYOUHI_RYOU) / SS * TIME_INCREMENTS
+            tmp_one_step_syouhi = np.array(self._one_step_syouhi(self.syouhi_ritsu_0))
+            self.tmp_ryou, self.tmp_syouhi_ritsu = tmp_one_step_syouhi[-1,:]
+            self.a_0 = self.tmp_ryou / (TIME_INCREMENTS**2)
 
             self.state = [self.h_0, self.v_0, self.a_0, self.tmp_syouhi_ritsu, int(self.kado_su_0)]
 
             return self.state
 
-    def render(self, mode='human', close=False):
+
+###############################################
+# render
+###############################################
+    def render(self, mode='human'):
+    # def render(self, mode='human', close=False):
+
         # human の場合はコンソールに出力。ansiの場合は StringIO を返す
         # if mode != 'console':
             # raise NotImplementedError
-        
+        screen_width = 700
+        screen_height = 1400
+
+        self.rener_state = []
         self.h, self.v, self.a, self.syouhi_ritsu, self.kado_su = self.state
-        self.render_state.append(self.state)
+        
+        self.syouhi_ritsu_random_walk = []
+        self.syouhi_ritsu_random_walk.append(np.array(self.one_step_syouhi)[:,1])
+
+        self.render_kado_su = []
+        self.render_kado_su.append(self.kado_su)
+
+        self.render_h = []
+        self.render_h.append(self.h)
+
+        self.render_reward = []
+        self.render_reward.append(self.reward)
+
+        self.render_episode_rewards = []
+        self.render_episode_rewards.append(self.episode_rewards)
+        
+        print("self.render_stage : ",self.rener_state)
+        print("self.syouhi_ritsu_random_walk : ",self.syouhi_ritsu_random_walk)
+
+        #----------------------------------------------
+        # graphics
+        #----------------------------------------------
+        if self.viewer is None:
+            from gym.envs.classic_control import rendering
+            self.viewer = rendering.Viewer(screen_width, screen_height)
+            # syouhi_graph
+            self.syouhi_graph_x = rendering.Line((50, 1150), (650, 1150))
+            self.syouhi_graph_x.set_color(0, 0, 0)
+            self.viewer.add_geom(self.syouhi_graph_x)
+            self.syouhi_graph_y = rendering.Line((50, 1150), (50, 1250))
+            self.syouhi_graph_y.set_color(0, 0, 0)
+            self.viewer.add_geom(self.syouhi_graph_y)
+
+            # kado_su
+            self.kado_su_graph_x = rendering.Line((50, 1000), (650, 1000))
+            self.kado_su_graph_x.set_color(0, 0, 0)
+            self.viewer.add_geom(self.kado_su_graph_x)
+            self.kado_su_graph_y = rendering.Line((50, 1000), (50, 1100))
+            self.kado_su_graph_y.set_color(0, 0, 0)
+            self.viewer.add_geom(self.kado_su_graph_y)
+
+            # ekimen h
+            self.h_graph_x = rendering.Line((50, 850), (650, 850))
+            self.h_graph_x.set_color(0, 0, 0)
+            self.viewer.add_geom(self.h_graph_x)
+            self.h_graph_y = rendering.Line((50, 850), (50, 950))
+            self.h_graph_y.set_color(0, 0, 0)
+            self.viewer.add_geom(self.h_graph_y)
+
+            # reward
+            self.reward_graph_x = rendering.Line((50, 700), (650, 700))
+            self.reward_graph_x.set_color(0, 0, 0)
+            self.viewer.add_geom(self.reward_graph_x)
+            self.reward_graph_y = rendering.Line((50, 700), (50, 800))
+            self.reward_graph_y.set_color(0, 0, 0)
+            self.viewer.add_geom(self.reward_graph_y)
+
+            # episode reward
+            self.episode_reward_graph_x = rendering.Line((50, 550), (650, 550))
+            self.episode_reward_graph_x.set_color(0, 0, 0)
+            self.viewer.add_geom(self.episode_reward_graph_x)
+            self.episode_reward_graph_y = rendering.Line((50, 550), (50, 650))
+            self.episode_reward_graph_y.set_color(0, 0, 0)
+            self.viewer.add_geom(self.episode_reward_graph_y)
+
+            # animation
+            self.ani_1 = rendering.Line((100, 500), (325, 500))
+            self.ani_1.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_1)
+            self.ani_2 = rendering.Line((100, 350), (100, 350))
+            self.ani_2.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_2)
+            self.ani_19 = rendering.Line((325, 500), (325, 475))
+            self.ani_19.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_19)
+            self.ani_3 = rendering.Line((250, 475), (400, 475))
+            self.ani_3.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_3)
+            self.ani_4 = rendering.Line((250, 475), (250, 450))
+            self.ani_4.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_4)
+            self.ani_5 = rendering.Line((300, 475), (300, 450))
+            self.ani_5.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_5)
+            self.ani_6 = rendering.Line((350, 475), (350, 450))
+            self.ani_6.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_6)
+            self.ani_7 = rendering.Line((400, 475), (400, 450))
+            self.ani_7.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_7)
+            self.ani_geom_20 = rendering.Transform(translation = (250,425))
+            self.ani_geom_21 = rendering.Transform(translation = (300,425))
+            self.ani_geom_22 = rendering.Transform(translation = (350,425))
+            self.ani_geom_23 = rendering.Transform(translation = (400,425))
+            if self.kado_su == 0.0:
+                self.ani_centrifuge_1 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
+                self.ani_centrifuge_1.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_1)
+                self.ani_centrifuge_2 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
+                self.ani_centrifuge_2.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_2)
+                self.ani_centrifuge_3 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
+                self.ani_centrifuge_3.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_3)
+                self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
+                self.ani_centrifuge_4.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_4)
+            if self.kado_su == 1.0:
+                self.ani_centrifuge_1 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
+                self.ani_centrifuge_1.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_1)
+                self.ani_centrifuge_2 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
+                self.ani_centrifuge_2.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_2)
+                self.ani_centrifuge_3 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
+                self.ani_centrifuge_3.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_3)
+                self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
+                self.ani_centrifuge_4.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_4)
+            if self.kado_su == 2.0:
+                self.ani_centrifuge_1 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
+                self.ani_centrifuge_1.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_1)
+                self.ani_centrifuge_2 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
+                self.ani_centrifuge_2.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_2)
+                self.viewer.add_geom(self.ani_centrifuge_2)
+                self.ani_centrifuge_3 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
+                self.ani_centrifuge_3.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_3)
+                self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
+                self.ani_centrifuge_4.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_4)
+            if self.kado_su == 3.0:
+                self.ani_centrifuge_1 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
+                self.ani_centrifuge_1.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_1)
+                self.ani_centrifuge_2 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
+                self.ani_centrifuge_2.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_2)
+                self.ani_centrifuge_3 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
+                self.ani_centrifuge_3.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_3)
+                self.viewer.add_geom(self.ani_centrifuge_3)
+                self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
+                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
+                self.ani_centrifuge_4.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_4)
+            if self.kado_su == 4.0:
+                self.ani_centrifuge_1 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
+                self.ani_centrifuge_1.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_1)
+                self.ani_centrifuge_2 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
+                self.ani_centrifuge_2.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_2)
+                self.ani_centrifuge_3 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
+                self.ani_centrifuge_3.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_3)
+                self.ani_centrifuge_4 = rendering.make_circle(25,filled=True)
+                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
+                self.ani_centrifuge_4.set_color(0, 0, 0)
+                self.viewer.add_geom(self.ani_centrifuge_4)
 
 
+        #----------------------------------------------
+        # character
+        #----------------------------------------------
         syutsuryoku = math.floor(self.syouhi_ritsu*10)
-        hight_of_ekimen = math.floor(self.h/h_max*10)
+        hight_of_ekimen = math.floor(self.h/H_MAX*10)
 
         if self.action != None:
             print("steps  : ",self.steps,end = "")
             print("   centrifuge : ",self.kado_su,"   ",end = "")
             print(" on "*int(self.kado_su), end = "")
-            print("off "*int(syori_pos-self.kado_su-1),end = "")
+            print("off "*int(SYORI_POS-self.kado_su-1),end = "")
             print("      ",end = "")
             print("syutsuryoku  :",syutsuryoku,"   ",end = "")
             print("*"*syutsuryoku,end = "")
             print("-"*(10-syutsuryoku),end = "")
             print("      ",end = "")
             print("Hight_of_ekimen :",hight_of_ekimen,"  ",end = "")
-            if self.h == h_max:
+            if self.h == H_MAX:
                 print("++++++++++",end = "")
             elif self.h == 0:
                 print("==========",end = "")
@@ -319,7 +513,8 @@ class CentrifugeEnv(gym.Env):
                 print("*"*hight_of_ekimen,end = "")
                 print("-"*(10-hight_of_ekimen),end = "")
             print("      ",end = "")
-            print("reward :",round(self.reward,1),"   action : ",self.action, "     episode_rewards : ",round(self.episode_rewards,1))
+            print("reward :",round(self.reward,1),"   action : ",self.action, \
+                "     episode_rewards : ",round(self.episode_rewards,1))
         # outfile = StringIO() if mode == 'ansi' else sys.stdout
         # outfile.write('\n'.join(' '.join(
                 # self.FIELD_TYPES[elem] for elem in row
@@ -328,38 +523,43 @@ class CentrifugeEnv(gym.Env):
         # )
         # return outfile
 
-    def _close(self):
-        pass
+        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+#----------------------------------------------
+
+    def close(self):
+        if self.viewer:
+            self.viewer.close()
+            self.viewer = None
 
     def _seed(self, seed=None):
         pass
 
     def _get_reward(self, h, action):
         # 報酬を返す。報酬の与え方が難しいが、ここでは
-        # 枠の中に液面が入っていれば keep_rewards
+        # 枠の中に液面が入っていれば KEEP_REWARDs
         # 新しい遠心分離機を稼働したら start_new_machiine（マイナス）
 
-        if h_max <= h:
-            r = over_flow
+        if H_MAX <= h:
+            r = OVER_FLOW
         elif h <= 0:
-            r = empty
+            r = EMPTY
         else:
-            r = keep_reward
+            r = KEEP_REWARD
 
         if action == 1 :
-            r += start_new_contrifuge
+            r += START_NEW_CONTRIFUGE
 
         self.episode_rewards +=r
         return r
 
     def _is_done(self, h):
         # 今回は最大で self.MAX_STEPS までとした
-        # if h<=0 or h_max <= h :
+        # if h<=0 or H_MAX <= h :
         # if h<=0:
             # return True
-        # elif self.steps >= max_steps-1:
+        # elif self.steps >= MAX_STEPS-1:
             # return True
-        if self.steps >= max_steps-1:
+        if self.steps >= MAX_STEPS-1:
             return True
         else:
             return False

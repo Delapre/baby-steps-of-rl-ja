@@ -23,28 +23,39 @@ def rev(tsuika,data_mei,model_mei):
     #os.chdir("./py_code")
     ##############################################
 
-
+    print("getcwd()  :",os.getcwd())
     # 追加学習ではない時
     if tsuika == None:
         print("新規学習　だよ")
         revision_name = model_mei+'__'+data_mei+'__'
-        kekka = path.Path("../kekka/")
-        re_name = revision_name+"*/"
-        already = list(kekka.glob(re_name))
+        kekka = path.Path("Solution1/kekka/")
+        print("kekka : ",kekka)
+        print("revision_name : ",revision_name)
+        already = list(kekka.glob(revision_name + "*/"))
+        print("already: ",str(already))
+        # already2 = os.listdir("Solution1/kekka/")
+        # print("already2: ",already2)
 
+        if not already:
+            rev = str(0)
         # co =0
         # for i in range(0,len(already)):
             # if revision_name in str(already[i]):
                 # co =co+1
         # print("既存のモデル数　：　",co)
-        co_s = [i.split('_')[-1] for i in already]
-        # max_co = max(int(already.split('_')[-1]))
-        if co_s:
-            max_co = max(co_s)
         else:
-            max_co = 0.0
-        co = int(max_co)+1
-        rev = str(co)
+            # co_x = [str(i).split('_') for i in already]
+            # print("co_x : ",co_x)
+            co_s = np.array([str(i).split('_') for i in already])[:,-1]
+            print("co_s : ",co_s)
+            co_int = [int(i) for i in co_s]
+            max_co = max(co_int)
+            # if co_s:
+                # max_co = max(co_s)
+            # else:
+                # max_co = 0.0
+            co = int(max_co)+1
+            rev = str(co)
 
         revision = revision_name+rev
 
