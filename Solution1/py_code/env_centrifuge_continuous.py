@@ -97,6 +97,8 @@ MIN_V = -MAX_SYOUHI_RYOU/SS
 # 5secで 消費率が最大振れ幅の時の速度変動/TIME_INCREMENTS
 A_MAX = MAX_SYOUHI_RYOU*SYOUHI_HENDO_RITSU*TIME_INCREMENTS/TIME_INCREMENTS
 
+SCREEN_WIDTH = 1300
+SCREEN_HEIGHT = 800
 #----------------------------------------------
 
 # def _syouhi_ryou(self, syouhi_ritsu):
@@ -127,11 +129,11 @@ A_MAX = MAX_SYOUHI_RYOU*SYOUHI_HENDO_RITSU*TIME_INCREMENTS/TIME_INCREMENTS
 class CentrifugeEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second': 5
+        'video.frames_per_second': 1
     }
 
     # 1clock分の燃料消費量
-    def _syouhi_ryou(self, syouhi_ritsu):
+    def _next_syouhi_ritsu(self, syouhi_ritsu):
 
         self.syouhi_ritsu = syouhi_ritsu
 
@@ -150,20 +152,22 @@ class CentrifugeEnv(gym.Env):
             if 0 >= next_syouhi_ritsu : 
                 next_syouhi_ritsu = 0
 
-        syouhi_ryou = next_syouhi_ritsu*MAX_SYOUHI_RYOU
 
-        return [syouhi_ryou, next_syouhi_ritsu]
+        return next_syouhi_ritsu
 
     # 1step分の燃料消費の積分
     def _one_step_syouhi(self,syouhi_ritsu):
         self.syouhi_ritsu_p = syouhi_ritsu
         self.one_step_syouhi = []
-        for i in range(TIME_INCREMENTS-1):
+        for i in range(TIME_INCREMENTS):
             if i == 0:
-                tmp_step_syouhi = self._syouhi_ryou(self.syouhi_ritsu_p)
+                tmp_syouhi_ryou = self.syouhi_ritsu_p * MAX_SYOUHI_RYOU
+                self.one_step_syouhi.append([self.syouhi_ritsu_p,tmp_syouhi_ryou])
+                tmp_next_syouhi_ritsu = self._next_syouhi_ritsu(self.syouhi_ritsu_p)
             else:
-                tmp_syouhi_ritsu = np.array(tmp_step_syouhi)[1]
-                self.one_step_syouhi.append(self._syouhi_ryou(tmp_syouhi_ritsu))
+                tmp_syouhi_ryou = tmp_next_syouhi_ritsu * MAX_SYOUHI_RYOU
+                self.one_step_syouhi.append([tmp_next_syouhi_ritsu, tmp_syouhi_ryou])
+                tmp_next_syouhi_ritsu = self._next_syouhi_ritsu(tmp_next_syouhi_ritsu)
                                     
         # 最終clockの情報だけreturn
         # one_step_ryou = sum(np.array(one_step_syouhi)[:,0])
@@ -182,6 +186,7 @@ class CentrifugeEnv(gym.Env):
             high=np.array([600,MAX_V,-A_MAX,1,1])
             )
         # self.reward_range = [-1., 100.]
+        self.syouhi_ritsu_random_walk = []
         self.action = None
         self.steps_beyond_done = None
         self.steps = 0
@@ -206,7 +211,10 @@ class CentrifugeEnv(gym.Env):
         その確率は左記の確率で変動する     syouhi_hendo = 0.2
         '''
         tmp_one_step_syouhi = np.array(self._one_step_syouhi(syouhi_ritsu_p)) 
-        self.step_ryou, self.next_syouhi_ritsu = tmp_one_step_syouhi[-1,:]
+        self.step_ryou = sum(tmp_one_step_syouhi[:,1])
+        self.syouhi_ritsu_random_walk.append(tmp_one_step_syouhi[:,0])
+        next_syouhi_ritsu = tmp_one_step_syouhi[-1,0]
+
         v_t = (kado_su_p * SYORI_PER_CENTRIFUGE * 5 - self.step_ryou/TIME_INCREMENTS)/SS
         a_t = (v_t - v_p)/TIME_INCREMENTS
         tmp_h_t = h_p + (kado_su_p * SYORI_PER_CENTRIFUGE * 5 - self.step_ryou)/SS
@@ -225,7 +233,7 @@ class CentrifugeEnv(gym.Env):
         else:
             kado_su_t = tmp_kado_su
 
-        self.state = np.array([h_t,v_t,a_t,self.next_syouhi_ritsu, int(kado_su_t)])
+        self.state = np.array([h_t,v_t,a_t,next_syouhi_ritsu, int(kado_su_t)])
 
         self.done = self._is_done(h_t)
 
@@ -267,7 +275,7 @@ class CentrifugeEnv(gym.Env):
         self.steps = 0
         self.episode_rewards = 0
 
-        self.viewer = None
+        # self.viewer = None
         if self.continuous:
             return self.state
         else:
@@ -300,14 +308,12 @@ class CentrifugeEnv(gym.Env):
         # human の場合はコンソールに出力。ansiの場合は StringIO を返す
         # if mode != 'console':
             # raise NotImplementedError
-        screen_width = 700
-        screen_height = 1400
 
         self.rener_state = []
         self.h, self.v, self.a, self.syouhi_ritsu, self.kado_su = self.state
         
-        self.syouhi_ritsu_random_walk = []
-        self.syouhi_ritsu_random_walk.append(np.array(self.one_step_syouhi)[:,1])
+        # self.syouhi_ritsu_random_walk = []
+        # self.syouhi_ritsu_random_walk.append(np.array(self.one_step_syouhi)[:,1])
 
         self.render_kado_su = []
         self.render_kado_su.append(self.kado_su)
@@ -321,172 +327,229 @@ class CentrifugeEnv(gym.Env):
         self.render_episode_rewards = []
         self.render_episode_rewards.append(self.episode_rewards)
         
-        print("self.render_stage : ",self.rener_state)
-        print("self.syouhi_ritsu_random_walk : ",self.syouhi_ritsu_random_walk)
+        # print("self.render_state : ",self.render_state)
+        print("self.syouhi_ritsu_random_walk : ",np.array(self.syouhi_ritsu_random_walk).shape)
 
         #----------------------------------------------
         # graphics
         #----------------------------------------------
         if self.viewer is None:
             from gym.envs.classic_control import rendering
-            self.viewer = rendering.Viewer(screen_width, screen_height)
+            self.viewer = rendering.Viewer(SCREEN_WIDTH, SCREEN_HEIGHT)
             # syouhi_graph
-            self.syouhi_graph_x = rendering.Line((50, 1150), (650, 1150))
+            self.syouhi_graph_x = rendering.Line((50, 650), (650, 650))
             self.syouhi_graph_x.set_color(0, 0, 0)
             self.viewer.add_geom(self.syouhi_graph_x)
-            self.syouhi_graph_y = rendering.Line((50, 1150), (50, 1250))
+            self.syouhi_graph_y = rendering.Line((50, 650), (50, 750))
             self.syouhi_graph_y.set_color(0, 0, 0)
             self.viewer.add_geom(self.syouhi_graph_y)
 
             # kado_su
-            self.kado_su_graph_x = rendering.Line((50, 1000), (650, 1000))
+            self.kado_su_graph_x = rendering.Line((50, 500), (650, 500))
             self.kado_su_graph_x.set_color(0, 0, 0)
             self.viewer.add_geom(self.kado_su_graph_x)
-            self.kado_su_graph_y = rendering.Line((50, 1000), (50, 1100))
+            self.kado_su_graph_y = rendering.Line((50, 500), (50, 600))
             self.kado_su_graph_y.set_color(0, 0, 0)
             self.viewer.add_geom(self.kado_su_graph_y)
 
             # ekimen h
-            self.h_graph_x = rendering.Line((50, 850), (650, 850))
+            self.h_graph_x = rendering.Line((50, 350), (650, 350))
             self.h_graph_x.set_color(0, 0, 0)
             self.viewer.add_geom(self.h_graph_x)
-            self.h_graph_y = rendering.Line((50, 850), (50, 950))
+            self.h_graph_y = rendering.Line((50, 350), (50, 450))
             self.h_graph_y.set_color(0, 0, 0)
             self.viewer.add_geom(self.h_graph_y)
 
             # reward
-            self.reward_graph_x = rendering.Line((50, 700), (650, 700))
+            self.reward_graph_x = rendering.Line((50, 200), (650, 200))
             self.reward_graph_x.set_color(0, 0, 0)
             self.viewer.add_geom(self.reward_graph_x)
-            self.reward_graph_y = rendering.Line((50, 700), (50, 800))
+            self.reward_graph_y = rendering.Line((50, 200), (50, 300))
             self.reward_graph_y.set_color(0, 0, 0)
             self.viewer.add_geom(self.reward_graph_y)
 
             # episode reward
-            self.episode_reward_graph_x = rendering.Line((50, 550), (650, 550))
+            self.episode_reward_graph_x = rendering.Line((50, 50), (650, 50))
             self.episode_reward_graph_x.set_color(0, 0, 0)
             self.viewer.add_geom(self.episode_reward_graph_x)
-            self.episode_reward_graph_y = rendering.Line((50, 550), (50, 650))
+            self.episode_reward_graph_y = rendering.Line((50, 50), (50, 150))
             self.episode_reward_graph_y.set_color(0, 0, 0)
             self.viewer.add_geom(self.episode_reward_graph_y)
 
             # animation
-            self.ani_1 = rendering.Line((100, 500), (325, 500))
+            self.ani_1 = rendering.Line((750, 550), (1150, 550))
             self.ani_1.set_color(0, 0, 0)
             self.viewer.add_geom(self.ani_1)
-            self.ani_2 = rendering.Line((100, 350), (100, 350))
+            self.ani_2 = rendering.Line((750, 550), (750, 350))
             self.ani_2.set_color(0, 0, 0)
             self.viewer.add_geom(self.ani_2)
-            self.ani_19 = rendering.Line((325, 500), (325, 475))
-            self.ani_19.set_color(0, 0, 0)
-            self.viewer.add_geom(self.ani_19)
-            self.ani_3 = rendering.Line((250, 475), (400, 475))
+            self.ani_26 = rendering.Line((1150, 550), (1150, 525))
+            self.ani_26.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_26)
+            self.ani_3 = rendering.Line((1050, 525), (1275, 525))
             self.ani_3.set_color(0, 0, 0)
             self.viewer.add_geom(self.ani_3)
-            self.ani_4 = rendering.Line((250, 475), (250, 450))
+            self.ani_4 = rendering.Line((1050, 525), (1050, 500))
             self.ani_4.set_color(0, 0, 0)
             self.viewer.add_geom(self.ani_4)
-            self.ani_5 = rendering.Line((300, 475), (300, 450))
+            self.ani_5 = rendering.Line((1125, 525), (1125, 500))
             self.ani_5.set_color(0, 0, 0)
             self.viewer.add_geom(self.ani_5)
-            self.ani_6 = rendering.Line((350, 475), (350, 450))
+            self.ani_6 = rendering.Line((1200, 525), (1200, 500))
             self.ani_6.set_color(0, 0, 0)
             self.viewer.add_geom(self.ani_6)
-            self.ani_7 = rendering.Line((400, 475), (400, 450))
+            self.ani_7 = rendering.Line((1275, 525), (1275, 500))
             self.ani_7.set_color(0, 0, 0)
             self.viewer.add_geom(self.ani_7)
-            self.ani_geom_20 = rendering.Transform(translation = (250,425))
-            self.ani_geom_21 = rendering.Transform(translation = (300,425))
-            self.ani_geom_22 = rendering.Transform(translation = (350,425))
-            self.ani_geom_23 = rendering.Transform(translation = (400,425))
-            if self.kado_su == 0.0:
-                self.ani_centrifuge_1 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
-                self.ani_centrifuge_1.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_1)
-                self.ani_centrifuge_2 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
-                self.ani_centrifuge_2.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_2)
-                self.ani_centrifuge_3 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
-                self.ani_centrifuge_3.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_3)
-                self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
-                self.ani_centrifuge_4.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_4)
-            if self.kado_su == 1.0:
-                self.ani_centrifuge_1 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
-                self.ani_centrifuge_1.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_1)
-                self.ani_centrifuge_2 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
-                self.ani_centrifuge_2.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_2)
-                self.ani_centrifuge_3 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
-                self.ani_centrifuge_3.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_3)
-                self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
-                self.ani_centrifuge_4.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_4)
-            if self.kado_su == 2.0:
-                self.ani_centrifuge_1 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
-                self.ani_centrifuge_1.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_1)
-                self.ani_centrifuge_2 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
-                self.ani_centrifuge_2.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_2)
-                self.viewer.add_geom(self.ani_centrifuge_2)
-                self.ani_centrifuge_3 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
-                self.ani_centrifuge_3.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_3)
-                self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
-                self.ani_centrifuge_4.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_4)
-            if self.kado_su == 3.0:
-                self.ani_centrifuge_1 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
-                self.ani_centrifuge_1.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_1)
-                self.ani_centrifuge_2 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
-                self.ani_centrifuge_2.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_2)
-                self.ani_centrifuge_3 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
-                self.ani_centrifuge_3.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_3)
-                self.viewer.add_geom(self.ani_centrifuge_3)
-                self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
-                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
-                self.ani_centrifuge_4.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_4)
-            if self.kado_su == 4.0:
-                self.ani_centrifuge_1 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_1.add_attr(self.ani_geom_20)
-                self.ani_centrifuge_1.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_1)
-                self.ani_centrifuge_2 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_2.add_attr(self.ani_geom_21)
-                self.ani_centrifuge_2.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_2)
-                self.ani_centrifuge_3 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_3.add_attr(self.ani_geom_22)
-                self.ani_centrifuge_3.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_3)
-                self.ani_centrifuge_4 = rendering.make_circle(25,filled=True)
-                self.ani_centrifuge_4.add_attr(self.ani_geom_23)
-                self.ani_centrifuge_4.set_color(0, 0, 0)
-                self.viewer.add_geom(self.ani_centrifuge_4)
+            # self.ani_geom_26 = rendering.Transform(translation = (1050,475))
+            # self.ani_geom_27 = rendering.Transform(translation = (1125,475))
+            # self.ani_geom_28 = rendering.Transform(translation = (1200,475))
+            # self.ani_geom_29 = rendering.Transform(translation = (1275,475))
+            # self.ani_centrifuge_1 = rendering.make_circle(25,filled=False)
+            # self.ani_centrifuge_1.add_attr(self.ani_geom_26)
+            # self.ani_centrifuge_1.set_color(0, 0, 0)
+            # self.viewer.add_geom(self.ani_centrifuge_1)
+            # self.ani_centrifuge_2 = rendering.make_circle(25,filled=False)
+            # self.ani_centrifuge_2.add_attr(self.ani_geom_27)
+            # self.ani_centrifuge_2.set_color(0, 0, 0)
+            # self.viewer.add_geom(self.ani_centrifuge_2)
+            # self.ani_centrifuge_3 = rendering.make_circle(25,filled=False)
+            # self.ani_centrifuge_3.add_attr(self.ani_geom_28)
+            # self.ani_centrifuge_3.set_color(0, 0, 0)
+            # self.viewer.add_geom(self.ani_centrifuge_3)
+            # self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
+            # self.ani_centrifuge_4.add_attr(self.ani_geom_29)
+            # self.ani_centrifuge_4.set_color(0, 0, 0)
+            # self.viewer.add_geom(self.ani_centrifuge_4)
+            if int(self.kado_su) == 0:
+                # self.ani_geom_30 = rendering.Transform()
+                # self.ani_geom_31 = rendering.Transform()
+                # self.ani_geom_32 = rendering.Transform()
+                # self.ani_geom_33 = rendering.Transform()
+                on_off_1 = False
+                on_off_2 = False
+                on_off_3 = False
+                on_off_4 = False
+            if int(self.kado_su) == 1:
+                # self.ani_geom_30 = rendering.Transform(translation = (1050,475))
+                # self.ani_geom_31 = rendering.Transform()
+                # self.ani_geom_32 = rendering.Transform()
+                # self.ani_geom_33 = rendering.Transform()
+                on_off_1 = True
+                on_off_2 = False
+                on_off_3 = False
+                on_off_4 = False
+            if int(self.kado_su) == 2:
+                # self.ani_geom_30 = rendering.Transform(translation = (1050,475))
+                # self.ani_geom_31 = rendering.Transform(translation = (1050,475))
+                # self.ani_geom_32 = rendering.Transform()
+                # self.ani_geom_33 = rendering.Transform()
+                on_off_1 = True
+                on_off_2 = True
+                on_off_3 = False
+                on_off_4 = False
+            if int(self.kado_su) == 3:
+                # self.ani_geom_30 = rendering.Transform(translation = (1050,475))
+                # self.ani_geom_31 = rendering.Transform(translation = (1050,475))
+                # self.ani_geom_32 = rendering.Transform(translation = (1050,475))
+                # self.ani_geom_33 = rendering.Transform()
+                on_off_1 = True
+                on_off_2 = True
+                on_off_3 = True
+                on_off_4 = False 
+            if int(self.kado_su) == 4:
+                on_off_1 = True
+                on_off_2 = True
+                on_off_3 = True
+                on_off_4 = True
+            print(int(self.kado_su))
+            self.ani_geom_30 = rendering.Transform(translation = (1050,475))
+            self.ani_geom_31 = rendering.Transform(translation = (1125,475))
+            self.ani_geom_32 = rendering.Transform(translation = (1200,475))
+            self.ani_geom_33 = rendering.Transform(translation = (1275,475))
+            # self.ani_geom_30 = rendering.Transform(rotation = on_off_1,translation = (1050,475))
+            # self.ani_geom_31 = rendering.Transform(rotation = on_off_2,translation = (1125,475))
+            # self.ani_geom_32 = rendering.Transform(rotation = on_off_3,translation = (1200,475))
+            # self.ani_geom_33 = rendering.Transform(rotation = on_off_4,translation = (1275,475))
+            # self.ani_geom_30 = rendering.Transform(rotation = 0,translation = (1050,475))
+            # self.ani_geom_31 = rendering.Transform(rotation = 0,translation = (1125,475))
+            # self.ani_geom_32 = rendering.Transform(rotation = 0,translation = (1200,475))
+            # self.ani_geom_33 = rendering.Transform(rotation = 0,translation = (1275,475))
+            self.ani_centrifuge_1_on = rendering.make_circle(25,filled = on_off_1)
+            self.ani_centrifuge_1_on.add_attr(self.ani_geom_30)
+            self.ani_centrifuge_1_on.set_color(0, 0, 0)
+            self.viewer.add_onetime(self.ani_centrifuge_1_on)
+            self.ani_centrifuge_2_on = rendering.make_circle(25, filled = on_off_2)
+            self.ani_centrifuge_2_on.add_attr(self.ani_geom_31)
+            self.ani_centrifuge_2_on.set_color(0, 0, 0)
+            self.viewer.add_onetime(self.ani_centrifuge_2_on)
+            self.ani_centrifuge_3_on = rendering.make_circle(25, filled = on_off_3)
+            self.ani_centrifuge_3_on.add_attr(self.ani_geom_32)
+            self.ani_centrifuge_3_on.set_color(0, 0, 0)
+            self.viewer.add_onetime(self.ani_centrifuge_3_on)
+            self.ani_centrifuge_4_on = rendering.make_circle(25, filled = on_off_4)
+            self.ani_centrifuge_4_on.add_attr(self.ani_geom_33)
+            self.ani_centrifuge_4_on.set_color(0, 0, 0)
+            self.viewer.add_onetime(self.ani_centrifuge_4_on)
 
+            self.ani_12 = rendering.Line((1050, 425), (1275, 425))
+            self.ani_12.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_12)
+            self.ani_8 = rendering.Line((1050, 450), (1050, 425))
+            self.ani_8.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_8)
+            self.ani_9 = rendering.Line((1125, 450), (1125, 425))
+            self.ani_9.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_9)
+            self.ani_10 = rendering.Line((1200, 450), (1200, 425))
+            self.ani_10.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_10)
+            self.ani_11 = rendering.Line((1275, 450), (1275, 425))
+            self.ani_11.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_11)
+            self.ani_13 = rendering.Line((1150, 425), (1150, 200))
+            self.ani_13.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_13)
+            self.ani_22 = rendering.Line((1000, 200), (1150, 200))
+            self.ani_22.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_22)
+
+            self.ani_14 = rendering.Line((700, 350), (1000, 350))
+            self.ani_14.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_14)
+            self.ani_15 = rendering.Line((700, 350), (700, 150))
+            self.ani_15.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_15)
+            self.ani_16 = rendering.Line((800, 350), (800, 150))
+            self.ani_16.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_16)
+            self.ani_17 = rendering.Line((825, 350), (825, 150))
+            self.ani_17.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_17)
+            self.ani_18 = rendering.Line((1000, 350), (1000, 150))
+            self.ani_18.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_18)
+            self.ani_19 = rendering.Line((700, 150), (800, 150))
+            self.ani_19.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_19)
+            self.ani_20 = rendering.Line((825, 150), (1000, 150))
+            self.ani_20.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_20)
+            self.ani_21 = rendering.Line((800, 325), (825, 325))
+            self.ani_21.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_21)
+            self.ani_23 = rendering.Line((750, 150), (750, 75))
+            self.ani_23.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_23)
+            self.ani_24 = rendering.Line((750, 75), (1075, 75))
+            self.ani_24.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_24)
+
+            self.ani_geom_25 = rendering.Transform(translation = (1150,75))
+            self.ani_motor_1 = rendering.make_circle(75,filled=False)
+            self.ani_motor_1.add_attr(self.ani_geom_25)
+            self.ani_motor_1.set_color(0, 0, 0)
+            self.viewer.add_geom(self.ani_motor_1)
 
         #----------------------------------------------
         # character

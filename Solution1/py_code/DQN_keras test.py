@@ -65,4 +65,4 @@ dqn.compile(Adam(learning_rate=1e-3), metrics=['mae'])
 dqn.load_weights('dqn_{ENV_NAME}_weights.h5f')
 
 # Finally, evaluate our algorithm for 5 episodes.
-dqn.test(env, nb_episodes=10, visualize=True)
+dqn.test(env, nb_episodes=1, visualize=True)
