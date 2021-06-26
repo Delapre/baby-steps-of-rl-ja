@@ -68,8 +68,8 @@ DOWN_PROB = 0.1
 # syouhi_params = (MAX_SYOUHI_RYOU, SYOUHI_HENDO_RITSU, UP_PROB , KEEP_PROB, DOWN_PROB )
 
 # 液面計算
-SS = 10000 # mm2：低面積
-H_MAX = 1000 # タンク高さ
+SS = 10000 # cm**2：低面積
+H_MAX = 1000 # cmタンク高さ
 # tank_params = (H_MAX,SS)
 
 # episode_params
@@ -80,8 +80,8 @@ MAX_STEPS = 60 # エピソード
 # state
 
 # rewards
-KEEP_REWARD = 0.5
-OVER_FLOW = -4
+KEEP_REWARD = 1.5
+OVER_FLOW = -3
 START_NEW_CONTRIFUGE = -2
 EMPTY = -4
 # rewards = (KEEP_REWARD, START_NEW_CONTRIFUGE)
@@ -129,7 +129,7 @@ SCREEN_HEIGHT = 800
 class CentrifugeEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second': 1
+        'video.frames_per_second': 10
     }
 
     # 1clock分の燃料消費量
@@ -211,9 +211,12 @@ class CentrifugeEnv(gym.Env):
         その確率は左記の確率で変動する     syouhi_hendo = 0.2
         '''
         tmp_one_step_syouhi = np.array(self._one_step_syouhi(syouhi_ritsu_p)) 
+        # print("tmp_one_step_syouhi : ",tmp_one_step_syouhi)
         self.step_ryou = sum(tmp_one_step_syouhi[:,1])
+        # print("step_ryou : ",self.step_ryou)
         self.syouhi_ritsu_random_walk.append(tmp_one_step_syouhi[:,0])
         next_syouhi_ritsu = tmp_one_step_syouhi[-1,0]
+        # print("next_syouhi_ritsu : ",next_syouhi_ritsu)
 
         v_t = (kado_su_p * SYORI_PER_CENTRIFUGE * 5 - self.step_ryou/TIME_INCREMENTS)/SS
         a_t = (v_t - v_p)/TIME_INCREMENTS
@@ -291,7 +294,7 @@ class CentrifugeEnv(gym.Env):
             self.v_0 = (self.kado_su_0 * SYORI_PER_CENTRIFUGE - \
                 self.syouhi_ritsu_0 * MAX_SYOUHI_RYOU) / SS * TIME_INCREMENTS
             tmp_one_step_syouhi = np.array(self._one_step_syouhi(self.syouhi_ritsu_0))
-            self.tmp_ryou, self.tmp_syouhi_ritsu = tmp_one_step_syouhi[-1,:]
+            self.tmp_syouhi_ritsu , self.tmp_ryou = tmp_one_step_syouhi[-1,:]
             self.a_0 = self.tmp_ryou / (TIME_INCREMENTS**2)
 
             self.state = [self.h_0, self.v_0, self.a_0, self.tmp_syouhi_ritsu, int(self.kado_su_0)]
@@ -310,7 +313,7 @@ class CentrifugeEnv(gym.Env):
             # raise NotImplementedError
 
         self.rener_state = []
-        self.h, self.v, self.a, self.syouhi_ritsu, self.kado_su = self.state
+        self.h, self.v, self.a, self.s_r, self.kado_su = self.state
         
         # self.syouhi_ritsu_random_walk = []
         # self.syouhi_ritsu_random_walk.append(np.array(self.one_step_syouhi)[:,1])
@@ -320,6 +323,7 @@ class CentrifugeEnv(gym.Env):
 
         self.render_h = []
         self.render_h.append(self.h)
+        graphic_h = 200*self.h/H_MAX
 
         self.render_reward = []
         self.render_reward.append(self.reward)
@@ -328,13 +332,17 @@ class CentrifugeEnv(gym.Env):
         self.render_episode_rewards.append(self.episode_rewards)
         
         # print("self.render_state : ",self.render_state)
-        print("self.syouhi_ritsu_random_walk : ",np.array(self.syouhi_ritsu_random_walk).shape)
+        tmp_syouhi_ritsu_random_walk = np.array(self.syouhi_ritsu_random_walk)
+        len_random_walk = len(tmp_syouhi_ritsu_random_walk)*TIME_INCREMENTS
+        tmp_syouhi_ritsu_random_walk = tmp_syouhi_ritsu_random_walk.reshape([len_random_walk,1])
+        # print("self.syouhi_ritsu_random_walk : ",tmp_syouhi_ritsu_random_walk.shape)
+        
+        from gym.envs.classic_control import rendering
 
         #----------------------------------------------
         # graphics
         #----------------------------------------------
         if self.viewer is None:
-            from gym.envs.classic_control import rendering
             self.viewer = rendering.Viewer(SCREEN_WIDTH, SCREEN_HEIGHT)
             # syouhi_graph
             self.syouhi_graph_x = rendering.Line((50, 650), (650, 650))
@@ -401,96 +409,6 @@ class CentrifugeEnv(gym.Env):
             self.ani_7 = rendering.Line((1275, 525), (1275, 500))
             self.ani_7.set_color(0, 0, 0)
             self.viewer.add_geom(self.ani_7)
-            # self.ani_geom_26 = rendering.Transform(translation = (1050,475))
-            # self.ani_geom_27 = rendering.Transform(translation = (1125,475))
-            # self.ani_geom_28 = rendering.Transform(translation = (1200,475))
-            # self.ani_geom_29 = rendering.Transform(translation = (1275,475))
-            # self.ani_centrifuge_1 = rendering.make_circle(25,filled=False)
-            # self.ani_centrifuge_1.add_attr(self.ani_geom_26)
-            # self.ani_centrifuge_1.set_color(0, 0, 0)
-            # self.viewer.add_geom(self.ani_centrifuge_1)
-            # self.ani_centrifuge_2 = rendering.make_circle(25,filled=False)
-            # self.ani_centrifuge_2.add_attr(self.ani_geom_27)
-            # self.ani_centrifuge_2.set_color(0, 0, 0)
-            # self.viewer.add_geom(self.ani_centrifuge_2)
-            # self.ani_centrifuge_3 = rendering.make_circle(25,filled=False)
-            # self.ani_centrifuge_3.add_attr(self.ani_geom_28)
-            # self.ani_centrifuge_3.set_color(0, 0, 0)
-            # self.viewer.add_geom(self.ani_centrifuge_3)
-            # self.ani_centrifuge_4 = rendering.make_circle(25,filled=False)
-            # self.ani_centrifuge_4.add_attr(self.ani_geom_29)
-            # self.ani_centrifuge_4.set_color(0, 0, 0)
-            # self.viewer.add_geom(self.ani_centrifuge_4)
-            if int(self.kado_su) == 0:
-                # self.ani_geom_30 = rendering.Transform()
-                # self.ani_geom_31 = rendering.Transform()
-                # self.ani_geom_32 = rendering.Transform()
-                # self.ani_geom_33 = rendering.Transform()
-                on_off_1 = False
-                on_off_2 = False
-                on_off_3 = False
-                on_off_4 = False
-            if int(self.kado_su) == 1:
-                # self.ani_geom_30 = rendering.Transform(translation = (1050,475))
-                # self.ani_geom_31 = rendering.Transform()
-                # self.ani_geom_32 = rendering.Transform()
-                # self.ani_geom_33 = rendering.Transform()
-                on_off_1 = True
-                on_off_2 = False
-                on_off_3 = False
-                on_off_4 = False
-            if int(self.kado_su) == 2:
-                # self.ani_geom_30 = rendering.Transform(translation = (1050,475))
-                # self.ani_geom_31 = rendering.Transform(translation = (1050,475))
-                # self.ani_geom_32 = rendering.Transform()
-                # self.ani_geom_33 = rendering.Transform()
-                on_off_1 = True
-                on_off_2 = True
-                on_off_3 = False
-                on_off_4 = False
-            if int(self.kado_su) == 3:
-                # self.ani_geom_30 = rendering.Transform(translation = (1050,475))
-                # self.ani_geom_31 = rendering.Transform(translation = (1050,475))
-                # self.ani_geom_32 = rendering.Transform(translation = (1050,475))
-                # self.ani_geom_33 = rendering.Transform()
-                on_off_1 = True
-                on_off_2 = True
-                on_off_3 = True
-                on_off_4 = False 
-            if int(self.kado_su) == 4:
-                on_off_1 = True
-                on_off_2 = True
-                on_off_3 = True
-                on_off_4 = True
-            print(int(self.kado_su))
-            self.ani_geom_30 = rendering.Transform(translation = (1050,475))
-            self.ani_geom_31 = rendering.Transform(translation = (1125,475))
-            self.ani_geom_32 = rendering.Transform(translation = (1200,475))
-            self.ani_geom_33 = rendering.Transform(translation = (1275,475))
-            # self.ani_geom_30 = rendering.Transform(rotation = on_off_1,translation = (1050,475))
-            # self.ani_geom_31 = rendering.Transform(rotation = on_off_2,translation = (1125,475))
-            # self.ani_geom_32 = rendering.Transform(rotation = on_off_3,translation = (1200,475))
-            # self.ani_geom_33 = rendering.Transform(rotation = on_off_4,translation = (1275,475))
-            # self.ani_geom_30 = rendering.Transform(rotation = 0,translation = (1050,475))
-            # self.ani_geom_31 = rendering.Transform(rotation = 0,translation = (1125,475))
-            # self.ani_geom_32 = rendering.Transform(rotation = 0,translation = (1200,475))
-            # self.ani_geom_33 = rendering.Transform(rotation = 0,translation = (1275,475))
-            self.ani_centrifuge_1_on = rendering.make_circle(25,filled = on_off_1)
-            self.ani_centrifuge_1_on.add_attr(self.ani_geom_30)
-            self.ani_centrifuge_1_on.set_color(0, 0, 0)
-            self.viewer.add_onetime(self.ani_centrifuge_1_on)
-            self.ani_centrifuge_2_on = rendering.make_circle(25, filled = on_off_2)
-            self.ani_centrifuge_2_on.add_attr(self.ani_geom_31)
-            self.ani_centrifuge_2_on.set_color(0, 0, 0)
-            self.viewer.add_onetime(self.ani_centrifuge_2_on)
-            self.ani_centrifuge_3_on = rendering.make_circle(25, filled = on_off_3)
-            self.ani_centrifuge_3_on.add_attr(self.ani_geom_32)
-            self.ani_centrifuge_3_on.set_color(0, 0, 0)
-            self.viewer.add_onetime(self.ani_centrifuge_3_on)
-            self.ani_centrifuge_4_on = rendering.make_circle(25, filled = on_off_4)
-            self.ani_centrifuge_4_on.add_attr(self.ani_geom_33)
-            self.ani_centrifuge_4_on.set_color(0, 0, 0)
-            self.viewer.add_onetime(self.ani_centrifuge_4_on)
 
             self.ani_12 = rendering.Line((1050, 425), (1275, 425))
             self.ani_12.set_color(0, 0, 0)
@@ -554,10 +472,67 @@ class CentrifugeEnv(gym.Env):
         #----------------------------------------------
         # character
         #----------------------------------------------
-        syutsuryoku = math.floor(self.syouhi_ritsu*10)
+        syutsuryoku = math.floor(self.s_r*10)
         hight_of_ekimen = math.floor(self.h/H_MAX*10)
 
         if self.action != None:
+            # print("self.kado_su : ",int(self.kado_su))
+            if int(self.kado_su) == 0:
+                on_off_1 = False
+                on_off_2 = False
+                on_off_3 = False
+                on_off_4 = False
+            if int(self.kado_su) == 1:
+                on_off_1 = True
+                on_off_2 = False
+                on_off_3 = False
+                on_off_4 = False
+            if int(self.kado_su) == 2:
+                on_off_1 = True
+                on_off_2 = True
+                on_off_3 = False
+                on_off_4 = False
+            if int(self.kado_su) == 3:
+                on_off_1 = True
+                on_off_2 = True
+                on_off_3 = True
+                on_off_4 = False 
+            if int(self.kado_su) == 4:
+                on_off_1 = True
+                on_off_2 = True
+                on_off_3 = True
+                on_off_4 = True
+            # print(int(self.kado_su))
+            # self.ani_geom_30 = rendering.Transform()
+            # self.ani_geom_30.set_translation(1050,475)
+            self.ani_geom_30 = rendering.Transform(translation = (1050,475))
+            self.ani_geom_31 = rendering.Transform(translation = (1125,475))
+            self.ani_geom_32 = rendering.Transform(translation = (1200,475))
+            self.ani_geom_33 = rendering.Transform(translation = (1275,475))
+            # print("on_off_1 : ",on_off_1)
+            self.ani_centrifuge_1_on = rendering.make_circle(25,filled = on_off_1)
+            self.ani_centrifuge_1_on.add_attr(self.ani_geom_30)
+            self.ani_centrifuge_1_on.set_color(0, 0, 0)
+            self.viewer.add_onetime(self.ani_centrifuge_1_on)
+            self.ani_centrifuge_2_on = rendering.make_circle(25, filled = on_off_2)
+            self.ani_centrifuge_2_on.add_attr(self.ani_geom_31)
+            self.ani_centrifuge_2_on.set_color(0, 0, 0)
+            self.viewer.add_onetime(self.ani_centrifuge_2_on)
+            self.ani_centrifuge_3_on = rendering.make_circle(25, filled = on_off_3)
+            self.ani_centrifuge_3_on.add_attr(self.ani_geom_32)
+            self.ani_centrifuge_3_on.set_color(0, 0, 0)
+            self.viewer.add_onetime(self.ani_centrifuge_3_on)
+            self.ani_centrifuge_4_on = rendering.make_circle(25, filled = on_off_4)
+            self.ani_centrifuge_4_on.add_attr(self.ani_geom_33)
+            self.ani_centrifuge_4_on.set_color(0, 0, 0)
+            self.viewer.add_onetime(self.ani_centrifuge_4_on)
+
+            tank = rendering.FilledPolygon([(700,150),(700,graphic_h+150),(800,graphic_h+150),(800,150)])
+            tank.set_color(.1, .1, .8)
+            self.tank_trans = rendering.Transform()
+            tank.add_attr(self.tank_trans)
+            self.viewer.add_onetime(tank)
+
             print("steps  : ",self.steps,end = "")
             print("   centrifuge : ",self.kado_su,"   ",end = "")
             print(" on "*int(self.kado_su), end = "")
@@ -567,7 +542,7 @@ class CentrifugeEnv(gym.Env):
             print("*"*syutsuryoku,end = "")
             print("-"*(10-syutsuryoku),end = "")
             print("      ",end = "")
-            print("Hight_of_ekimen :",hight_of_ekimen,"  ",end = "")
+            print(syutsuryoku, "Hight_of_ekimen :",hight_of_ekimen,"  ",end = "")
             if self.h == H_MAX:
                 print("++++++++++",end = "")
             elif self.h == 0:

@@ -28,7 +28,7 @@ ENV_NAME = 'Centrifuge-v0'
 # パラメータ
 #----------------------------------------------
 
-window_haba = 8
+window_haba = 10
 
 # log_filepath = "./Solution1/py_code/logs/" + ENV_NAME
 # print(log_filepath)
@@ -73,7 +73,7 @@ callbacks = [TensorBoard (log_dir=log_filepath, histogram_freq=0)]
 # Okay, now it's time to learn something! We visualize the training here for show,
 #  but this slows down training quite a lot. You can always safely abort the 
 # training prematurely using Ctrl + C.
-dqn.fit(env, nb_steps=600, visualize=False, nb_max_episode_steps=60, verbose=2,\
+dqn.fit(env, nb_steps=60000, visualize=False, nb_max_episode_steps=60, verbose=2,\
          callbacks = callbacks)
 
 elapsed_time = time.time() - start

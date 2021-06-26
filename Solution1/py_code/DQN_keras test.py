@@ -17,7 +17,7 @@ from env_centrifuge_continuous import CentrifugeEnv
 #----------------------------------------------
 
 window_haba = 4
-model_params = "./Solution1/kekka/dqn_lstm_Centrifuge-v0_7"
+model_params = "./Solution1/kekka/dqn_lstm_Centrifuge-v0_3"
 
 window_haba = 8
 #----------------------------------------------
@@ -65,4 +65,4 @@ dqn.compile(Adam(learning_rate=1e-3), metrics=['mae'])
 dqn.load_weights('dqn_{ENV_NAME}_weights.h5f')
 
 # Finally, evaluate our algorithm for 5 episodes.
-dqn.test(env, nb_episodes=1, visualize=True)
+dqn.test(env, nb_episodes=5, visualize=True)
