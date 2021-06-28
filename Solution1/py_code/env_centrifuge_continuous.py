@@ -83,7 +83,7 @@ MAX_STEPS = 60 # エピソード
 KEEP_REWARD = 1.5
 OVER_FLOW = -3
 START_NEW_CONTRIFUGE = -2
-EMPTY = -4
+EMPTY = -6
 # rewards = (KEEP_REWARD, START_NEW_CONTRIFUGE)
 
 # 燃料消費：0_MAX_SYOUHI_RYOU l/mini
@@ -129,7 +129,7 @@ SCREEN_HEIGHT = 800
 class CentrifugeEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second': 10
+        'video.frames_per_second': 60
     }
 
     # 1clock分の燃料消費量
