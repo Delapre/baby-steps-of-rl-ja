@@ -16,10 +16,9 @@ from env_centrifuge_continuous import CentrifugeEnv
 # パラメータ
 #----------------------------------------------
 
-window_haba = 4
-model_params = "./Solution1/kekka/dqn_lstm_Centrifuge-v0_3"
+window_haba = 10
+model_params = "./Solution1/kekka/dqn_lstm__Centrifuge-v0__9"
 
-window_haba = 8
 #----------------------------------------------
 
 
@@ -62,7 +61,11 @@ dqn.compile(Adam(learning_rate=1e-3), metrics=['mae'])
 # Ctrl + C.
 # dqn.fit(env, nb_steps=600, visualize=False, nb_max_episode_steps=60, verbose=2)
 
-dqn.load_weights('dqn_{ENV_NAME}_weights.h5f')
+model_path = model_params + '/model_weights.h5f'
+print("model_path : ", model_path)
+dqn.load_weights(model_path)
 
 # Finally, evaluate our algorithm for 5 episodes.
-dqn.test(env, nb_episodes=5, visualize=True)
+tests = dqn.test(env, nb_episodes=5, visualize=False)
+print(tests.history['episode_reward'],"   total : ",sum(tests.history['episode_reward']))
+# print(np.array(test))
